@@ -1,5 +1,7 @@
 #%% IMPORT MODULES
 
+from copy import deepcopy
+
 import numpy as np
 import matplotlib.pyplot as plt
 import numba as nb
@@ -89,3 +91,63 @@ class model(object):
 
         # Return output in a matrix
         return np.array([V_vec, g1 * w_vec, spks])
+
+
+class simulation(object):
+
+    def __init__(self, I, mod, V0 = 0, dt = 0.1):
+
+        self._mod = deepcopy(mod) # Attach a copy of model just in case
+
+        I, V_vec, I_g1, spks, dt = self._mod.simulate(I, V0, dt)
+
+        self.I      = I         # Injected current (nA)
+        self.V      = V_vec     # Somatic voltage (mV)
+        self.I_g1   = I_g1      # Current passed by conductance g1 (nA)
+        self.spks   = spks      # Boolean vector of spks
+        self.dt     = dt        # Simulation timestep
+
+
+    ### Methods to get various transformations of spiketrain
+    def get_spk_vec(self):
+        return self.spks
+
+    def get_spk_inds(self):
+        return np.where(self.spks)[0]
+
+    def get_spk_times(self):
+        return self.get_spk_inds() * self.dt
+
+
+    ### Method to get time vector
+    def get_t_vec(self):
+        return np.arange(0, int(len(self.I) * self.dt), self.dt)
+
+
+    ### Plotting methods
+    def basic_plot(self):
+
+        plt.figure(figsize = (8, 6))
+
+        spec = plt.GridSpec(4, 1, height_ratios = [0.2, 1, 1, 0.5], hspace = 0.4)
+
+        t = self.get_t_vec()
+
+        I_plot = plt.subplot(spec[3, :])
+        plt.plot(t, self.I)
+        plt.ylabel('I (nA)')
+
+        plt.subplot(spec[0, :], sharex = I_plot)
+        plt.plot(t, self.spks)
+        plt.ylabel('Spks')
+        plt.ylim(-0.05, 1.05)
+
+        plt.subplot(spec[1, :], sharex = I_plot)
+        plt.plot(t, self.V)
+        plt.ylabel('V (mV)')
+
+        plt.subplot(spec[2, :], sharex = I_plot)
+        plt.plot(t, self.I_g1)
+        plt.ylabel('I_g1 (nA)')
+
+        plt.show()

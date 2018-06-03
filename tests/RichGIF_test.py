@@ -8,7 +8,7 @@ sys.path.append('./src')
 
 import RichGIF as rGIF
 
-#%% TEST SIMULATION
+#%% TEST MODEL CLASS
 
 C       = 0.5 #nF
 g       = 0.025 #uS
@@ -49,3 +49,11 @@ plt.xlabel('Time (ms)')
 
 plt.tight_layout()
 plt.show()
+
+#%% TEST SIMULATION CLASS
+
+test_sim = rGIF.simulation(test_current, test_mod)
+test_sim.get_spk_inds()
+test_sim.get_spk_times()
+test_sim.get_spk_vec()
+test_sim.basic_plot()

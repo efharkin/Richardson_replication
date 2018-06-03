@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import stats
 import numba as nb
 
 
@@ -42,7 +43,7 @@ class model(object):
 
         V_mat = sim_tensor[0, :, :]
         I_g1 = sim_tensor[1, :, :]
-        spks = sim_tensor[2, :, :]
+        spks = sim_tensor[2, :, :].astype(np.bool)
 
         return (I, V_mat, I_g1, spks, dt)
 
@@ -156,6 +157,34 @@ class simulation(object):
 
         return spk_times_ls
 
+    def get_firing_rate(self, bin_width = 10):
+
+        """
+        Compute binned firing rate
+
+        Inputs:
+
+            bin_width (float or None)
+            --  Width of bin (ms) to use for firing rate calculation. Binned by timestep if set to None.
+
+        Returns:
+            Tuple of bin centres and binned firing rate.
+        """
+
+        inst_firing_rate = self.spks.sum(axis = 0) / (self.replicates * self.dt) * 1e3
+
+        if bin_width is None:
+            return (self.get_t_vec(), inst_firing_rate)
+        else:
+            firing_rate_bins = np.arange(0, self.get_t_vec()[-1] + bin_width - self.dt, bin_width)
+            binned_firing_rate, bin_edges, _ = stats.binned_statistic(
+                self.get_t_vec(), inst_firing_rate, 'mean', firing_rate_bins
+                )
+
+            fr_bin_centres = (firing_rate_bins[1:] + firing_rate_bins[:-1]) / 2
+
+            return (fr_bin_centres, binned_firing_rate)
+
 
     ### Method to get time vector
     def get_t_vec(self):
@@ -214,5 +243,44 @@ class simulation(object):
         plt.subplot(spec[2, :], sharex = I_plot)
         plt.plot(t_mat_transpose, self.I_g1.T, 'k-', alpha = 1/self.replicates)
         plt.ylabel('I_g1 (nA)')
+
+        plt.show()
+
+
+    def firing_rate_plot(self, save_path = None, bin_width = 10):
+
+        plt.figure(figsize = (8, 6))
+
+        spec = plt.GridSpec(3, 1)
+
+        t_mat_transpose = self.get_t_mat().T
+
+        sample_neuron_plot = plt.subplot(spec[0, :])
+        plt.title('A. Sample trace', loc = 'left')
+        V_trace = self.V.T[:, 0] - 70
+        V_trace[self.spks[0, :]] = 0
+        plt.plot(t_mat_transpose[:, 0], V_trace, 'k-', linewidth = 0.5)
+        sample_neuron_plot.set_xticklabels([])
+        plt.ylabel('Voltage (mV)')
+
+        raster_plot = plt.subplot(spec[1, :])
+        plt.title('B. Raster plot', loc = 'left')
+        spk_times = self.get_spk_times()
+        for rep in range(self.replicates):
+            plt.plot(spk_times[rep], [rep] * len(spk_times[rep]), '|', color = 'k')
+        raster_plot.set_xticklabels([])
+        plt.ylabel('Replicate')
+
+        firing_rate_plot = plt.subplot(spec[2, :])
+        plt.title('C. Mean firing rate', loc = 'left')
+        t_binned, binned_firing_rate = self.get_firing_rate(bin_width = bin_width)
+        plt.bar(t_binned, binned_firing_rate, width = bin_width, facecolor = 'none', edgecolor = 'k')
+        plt.ylabel('Rate (Hz)')
+        plt.xlabel('Time (ms)')
+
+        plt.tight_layout()
+
+        if save_path is not None:
+            plt.savefig(save_path, dpi = 300)
 
         plt.show()

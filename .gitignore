@@ -1,3 +1,4 @@
+doc/img*
 .ropeproject
 __pycache__
 doc/aux*

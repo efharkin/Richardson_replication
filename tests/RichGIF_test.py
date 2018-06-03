@@ -2,6 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import stats
 
 import sys
 sys.path.append('./src')
@@ -56,8 +57,17 @@ plt.show()
 
 #%% TEST SIMULATION CLASS
 
-test_sim = rGIF.simulation(test_current, I_N, test_mod, no_neurons)
+no_neurons = 300
+t = np.arange(0, 500, dt)
+test_current = 0.024 * np.sin(t * 2 * np.pi / 200) + 0.95
+V0 = 17.5
+
+test_sim = rGIF.simulation(test_current, I_N, test_mod, no_neurons, V0)
 test_sim.get_spk_mat()
 test_sim.get_spk_inds()
 test_sim.get_spk_times()
 test_sim.basic_plot()
+
+test_sim.get_firing_rate()
+
+test_sim.firing_rate_plot('doc/img/fig1.png')

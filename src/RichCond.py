@@ -7,13 +7,15 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 
-#%% DEFINE NEURON MODEL CLASS
+#%% DEFINE NEURON MODEL CLASSES
 
 class model1(object):
 
     def __init__(self, C = 0.37, gl = 0.037, El = -68, gNa = 19.24, ENa = 55,
         tau_m = 0, gK = 7.4, EK = -90, gIh = 0.03, EIh = -41, tau_Ihf = 38,
         tau_Ihs = 319):
+
+        self._model_type = '1'
 
         self.C      = C             # Membrane capacitance (nF)
         self.gl     = gl            # Leak conductance (uS)
@@ -174,15 +176,183 @@ class model1(object):
         return np.array([V_mat, m_mat, h_mat, n_mat, Ihf_mat, Ihs_mat, spks_mat])
 
 
-#%% DEFINE SIMULATION CLASS
+class model2(object):
 
-class simulation_m1(object):
+    def __init__(self, C = 0.37, gl = 0.037, El = -68, gNa = 19.24, ENa = 55,
+        tau_m = 0, gK = 7.4, EK = -90, gNaP = 0.037, gKs = 2.59, tau_q = 6):
+
+        self._model_type = '2'
+
+        self.C      = C             # Membrane capacitance (nF)
+        self.gl     = gl            # Leak conductance (uS)
+        self.El     = El            # Leak reversal (mV)
+
+        self.gNa    = gNa           # Sodium conductance (uS)
+        self.ENa    = ENa           # Sodium reversal (mV)
+        self.tau_m  = tau_m         # Sodium activation tau (ms)
+
+        self.gK     = gK            # Potassium conductance (uS)
+        self.EK     = EK            # Potassium reversal (mV)
+
+        self.gNaP   = gNaP          # Persistent sodium maximal conductance (uS)
+
+        self.gKs    = gKs           # Slow potassium maximal conductance (uS)
+        self.tau_q  = tau_q         # Slow potassium tau (ms)
+
+
+    def simulate(self, I, I_N, V0, replicates = 1, spk_detect_thresh = -30,
+        spk_detect_tref = 2, dt = 0.1):
+
+        """
+        Simulate voltage.
+
+        Inputs:
+
+            spk_detect_thresh (numeric; default -30)
+            --  Voltage threshold (mV) for online spike detection
+
+            spk_detect_tref (numeric; default 2)
+            --  'Absolute refractory period' (ms) used to prevent detecting the same spk multiple times.
+
+        Returns:
+            Tuple of I, V, m, h, n, p, q, spks, and dt
+
+            I through spks are matrices with dimensionality [replicate, time].
+        """
+
+        I = np.tile(I, (replicates, 1))
+
+        I_rand = I_N * np.random.normal(size = I.shape)
+
+        sim_tensor = self._simulate(
+            I, I_rand, V0, self.C, self.gl, self.El, self.gNa, self.ENa,
+            self.gK, self.EK, self.gNaP, self.gKs, self.tau_q,
+            spk_detect_thresh, spk_detect_tref, dt
+        )
+
+        V_mat       = sim_tensor[0, :, :]
+        m_mat       = sim_tensor[1, :, :]
+        h_mat       = sim_tensor[2, :, :]
+        n_mat       = sim_tensor[3, :, :]
+        p_mat       = sim_tensor[4, :, :]
+        q_mat       = sim_tensor[5, :, :]
+        spks_mat    = sim_tensor[6, :, :].astype(np.bool)
+
+        return (I, V_mat, m_mat, h_mat, n_mat, p_mat, q_mat, spks_mat, dt)
+
+
+    @staticmethod
+    def _simulate(I, I_rand, V0, C, gl, El, gNa, ENa, gK, EK, gNaP, gKs, tau_q,
+        spk_detect_thresh, spk_detect_tref, dt):
+
+        """
+        Private method for simulation.
+        Called by GIF_mod.simulate().
+
+        Ripe for acceleration with numba.jit(), except that numba throws an error when _simulate is called.
+        """
+
+        ### Define functions.
+        integrate_gate = lambda x_inf_, x_0, tau_x_, dt_: (x_inf_ - x_0) / tau_x_ * dt_
+
+        # Define gating functions for m, h, n
+        x_inf = lambda alpha, beta, V: alpha(V) / (alpha(V) + beta(V))
+        tau_x = lambda alpha, beta, V: 1 / (26.12 * (alpha(V) + beta(V)))
+
+        alpha_m = lambda V: -0.1 * (V + 32) / (np.exp(-0.1 * (V + 32)) - 1)
+        beta_m = lambda V: 4 * np.exp(-(V + 57)/18)
+
+        alpha_h = lambda V: 0.07 * np.exp(-(V + 46)/20)
+        beta_h = lambda V: 1 / (np.exp(-0.1 * (V + 16)) + 1)
+
+        alpha_n = lambda V: -0.01 * (V + 36) / (np.exp(-0.1 * (V + 36)) - 1)
+        beta_n = lambda V: 0.125 * np.exp(-(V + 46)/80)
+
+        m_inf = lambda V: x_inf(alpha_m, beta_m, V)
+        h_inf = lambda V: x_inf(alpha_h, beta_h, V)
+        n_inf = lambda V: x_inf(alpha_n, beta_n, V)
+
+        tau_h = lambda V: tau_x(alpha_h, beta_h, V)
+        tau_n = lambda V: tau_x(alpha_n, beta_n, V)
+
+        # Define gating functions for additional conductances
+        p_inf = lambda V: 1 / (1 + np.exp(-(V + 51) / 5))
+        q_inf = lambda V: 1 / (1 + np.exp(-(V + 34) / 6.5))
+
+
+        ### Create matrices to store output
+        V_mat = np.empty(I.shape, dtype = np.float64)
+        m_mat = np.empty(I.shape, dtype = np.float64)
+        h_mat = np.empty(I.shape, dtype = np.float64)
+        n_mat = np.empty(I.shape, dtype = np.float64)
+        p_mat = np.empty(I.shape, dtype = np.float64)
+        q_mat = np.empty(I.shape, dtype = np.float64)
+        spks_mat = np.zeros(I.shape, dtype = np.bool)
+
+
+        ### Set initial conditions
+        V_mat[:, 0]     = V0
+        m_mat[:, 0]     = m_inf(V0)
+        h_mat[:, 0]     = h_inf(V0)
+        n_mat[:, 0]     = n_inf(V0)
+        p_mat[:, 0]   = p_inf(V0)
+        q_mat[:, 0]   = q_inf(V0)
+
+        spk_detect_tref_ind = int(spk_detect_tref / dt)
+
+
+        ### Integrate over time
+        t = 0
+        while t < (I.shape[1] - 1):
+
+            V_t = V_mat[:, t]
+
+            # Integrate gates
+            m_mat[:, t + 1] = m_inf(V_t)
+            h_mat[:, t + 1] = h_mat[:, t] + integrate_gate(h_inf(V_t), h_mat[:, t], tau_h(V_t), dt)
+            n_mat[:, t + 1] = n_mat[:, t] + integrate_gate(n_inf(V_t), n_mat[:, t], tau_n(V_t), dt)
+            p_mat[:, t + 1] = p_inf(V_t)
+            q_mat[:, t + 1] = q_mat[:, t] + integrate_gate(q_inf(V_t), q_mat[:, t], tau_q, dt)
+
+            # Integrate V
+            I_conductances = (
+                -gl * (V_t - El)
+                - gNa * m_mat[:, t]**3 * h_mat[:, t] * (V_t - ENa)
+                - gK * n_mat[:, t]**4 * (V_t - EK)
+                - gNaP * p_mat[:, t] * (V_t - ENa)
+                - gKs * q_mat[:, t] * (V_t - EK)
+            )
+
+            dV_t_deterministic = (I_conductances + I[:, t]) / C * dt
+            dV_t_stochastic = I_rand[:, t] / C * np.sqrt(dt)
+
+            V_mat[:, t + 1] = V_t + dV_t_deterministic + dV_t_stochastic
+
+            # Flag spks
+            spks_t = np.logical_and(
+                np.logical_and(V_t > spk_detect_thresh, dV_t_deterministic > 0),
+                ~np.any(spks_mat[:, t-spk_detect_tref_ind:t])
+            )
+            spks_mat[spks_t, t] = True
+
+            # Increment t
+            t += 1
+
+
+        ### Return output in a tensor
+        return np.array([V_mat, m_mat, h_mat, n_mat, p_mat, q_mat, spks_mat])
+
+
+
+#%% DEFINE SIMULATION CLASSES
+
+class simulation(object):
 
     def __init__(self, I, I_N, mod, replicates = 1, V0 = 0, dt = 0.1):
 
         self._mod = deepcopy(mod) # Attach a copy of model just in case
 
-        I, V_mat, m_mat, h_mat, n_mat, Ihf_mat, Ihs_mat, spks_mat, dt = (
+        I, V_mat, m_mat, h_mat, n_mat, v1_mat, v2_mat, spks_mat, dt = (
             self._mod.simulate(I, I_N, V0, replicates, dt = dt)
         )
 
@@ -191,10 +361,32 @@ class simulation_m1(object):
         self.m      = m_mat
         self.h      = h_mat
         self.n      = n_mat
-        self.Ihf    = Ihf_mat
-        self.Ihs    = Ihs_mat
+        self._var1  = v1_mat
+        self._var2  = v2_mat
         self.spks   = spks_mat  # Boolean vector of spks
         self.dt     = dt        # Simulation timestep
+
+
+    ### Methods to access extra conductances
+    @property
+    def p(self):
+        if self._mod._model_type == '2': return self._var1
+        else: raise AttributeError('Model has no attribute `p`')
+
+    @property
+    def q(self):
+        if self._mod._model_type == '2': return self._var2
+        else: raise AttributeError('Model has no attribute `q`')
+
+    @property
+    def Ihf(self):
+        if self._mod._model_type == '1': return self._var1
+        else: raise AttributeError('Model has no attribute `Ihf`')
+
+    @property
+    def Ihs(self):
+        if self._mod._model_type == '1': return self._var2
+        else: raise AttributeError('Model has no attribute `Ihs`')
 
 
     ### Methods to get various transformations of spiketrain
@@ -288,8 +480,8 @@ class simulation_m1(object):
                                self.m.shape[0],
                                self.h.shape[0],
                                self.n.shape[0],
-                               self.Ihf.shape[0],
-                               self.Ihs.shape[0],
+                               self._var1.shape[0],
+                               self._var2.shape[0],
                                self.spks.shape[0]]
 
         assert all([inferred_replicates[0] == r for r in inferred_replicates]), 'Not all attrs have same no of replicates'

@@ -9,6 +9,7 @@ sys.path.append('./src')
 
 import RichGIF as rGIF
 
+
 #%% TEST MODEL CLASS
 
 C       = 0.5 #nF
@@ -55,6 +56,7 @@ plt.xlabel('Time (ms)')
 plt.tight_layout()
 plt.show()
 
+
 #%% TEST SIMULATION CLASS
 
 no_neurons = 300
@@ -71,6 +73,7 @@ test_sim.basic_plot()
 test_sim.get_firing_rate()
 
 test_sim.firing_rate_plot('doc/img/fig1.png')
+
 
 #%% TEST RETRIEVAL OF BINNED CURRENT AND FIRING RATE TOGETHER
 
@@ -92,4 +95,52 @@ plt.xlabel('Time (ms)')
 plt.ylabel('I (nA)')
 
 plt.subplots_adjust(top = 0.9)
+plt.show()
+
+
+#%% TEST GAIN EXTRACTION
+
+no_neurons = int(2e2)
+V0 = 17.5
+I_N = 0.55
+bin_width = 2
+
+freqs_ = []
+gains_ = []
+phases_ = []
+
+for freq in [1, 5, 10, 50, 100]:
+
+    print('\rSimulating frequency {}'.format(freq), end = '')
+
+    t = np.arange(0, 20 * 1e3 / freq, dt)
+    test_current = 0.059 * np.sin(t * 2 * np.pi * freq * 1e-3) + 0.78
+
+    test_sim = rGIF.simulation(test_current, I_N, test_mod, no_neurons, V0)
+
+    gain, phase = test_sim.extract_IO_gain_phase(freq, bin_width = bin_width, plot = True)
+
+    freqs_.append(freq)
+    gains_.append(gain)
+    phases_.append(phase)
+
+print('\nDone!')
+
+plt.figure()
+
+plt.suptitle('High noise case')
+
+gain_plot = plt.subplot(121)
+gain_plot.set_xscale('log')
+plt.plot(freqs_, gains_)
+plt.ylabel('Gain')
+plt.xlabel('Frequency (Hz)')
+
+phase_plot = plt.subplot(122)
+phase_plot.set_xscale('log')
+plt.plot(freqs_, phases_)
+plt.ylabel('Phase shift (radians)')
+plt.xlabel('Frequency (Hz)')
+
+plt.subplots_adjust(top = 0.85)
 plt.show()

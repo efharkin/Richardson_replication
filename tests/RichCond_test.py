@@ -143,3 +143,51 @@ plt.ylabel('I (nA)')
 
 plt.subplots_adjust(top = 0.9)
 plt.show()
+
+
+#%% TEST GAIN EXTRACTION
+
+no_neurons = 50
+V0 = -60
+I_N = 0.5
+bin_width = 2
+dt = 0.1
+
+freqs_ = []
+gains_ = []
+phases_ = []
+
+for freq in [5, 10, 50, 100]:
+
+    print('\rSimulating frequency {}'.format(freq), end = '')
+
+    t = np.arange(0, 20 * 1e3 / freq, dt)
+    test_current = 0.3 * np.sin(t * 2 * np.pi * freq * 1e-3) + 3
+
+    test_sim = Cond.simulation(test_current, I_N, test_mod2, no_neurons, V0, dt)
+
+    gain, phase = test_sim.extract_IO_gain_phase(freq, bin_width = bin_width, plot = True)
+
+    freqs_.append(freq)
+    gains_.append(gain)
+    phases_.append(phase)
+
+print('\nDone!')
+
+
+plt.figure()
+
+gain_plot = plt.subplot(121)
+gain_plot.set_xscale('log')
+plt.plot(freqs_, gains_)
+plt.ylabel('Gain')
+plt.xlabel('Frequency (Hz)')
+
+phase_plot = plt.subplot(122)
+phase_plot.set_xscale('log')
+plt.plot(freqs_, phases_)
+plt.ylabel('Phase shift (radians)')
+plt.xlabel('Frequency (Hz)')
+
+plt.tight_layout()
+plt.show()

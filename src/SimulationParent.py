@@ -3,6 +3,7 @@
 import abc
 
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy import stats
 
 
@@ -131,3 +132,107 @@ class Simulation(abc.ABC):
     @abc.abstractmethod
     def replicates(self):
         pass
+
+
+    ### Methods for gain analysis
+    @staticmethod
+    def _dft_single_freq(signal, f, fs, return_complex = True):
+
+        """
+        Compute the discrete fourier transform at a specific frequency.
+
+        Inputs:
+
+            signal (list-like)
+
+            f (float)
+            --  Frequency at which to compute the transform
+
+            fs (float)
+            --  Sampling frequency of the signal
+
+            return_complex (bool; default True)
+            --  Return complex result of the transform. Returns a tuple of amplitude and phase (in radians) if set to False.
+
+        Returns:
+            Result of the fourier transform as either a complex number or tuple of real-valued amplitude and phase, depending on the setting of `return_complex`.
+        """
+
+        exponential_term = np.exp(-1j * 2 * np.pi * np.arange(len(signal)) * f / fs)
+
+        coefficient = np.sum(np.array(signal) * exponential_term)
+
+        if return_complex:
+            return coefficient
+        else:
+            amplitude   = np.absolute(coefficient)
+            phase       = np.angle(coefficient)
+
+            return (amplitude, phase)
+
+
+    def extract_IO_gain_phase(self, f, bin_width = 1, discard_cycles = 2, plot = False):
+
+        """
+        Extract the gain and phase-shift of the firing response vs. input current at a specified frequency.
+
+        Inputs:
+
+            f (float)
+            --  Frequency at which to get gain and phase shift.
+
+            bin_width (float; default 1ms)
+            --  Firing rate bin size (ms).
+
+            discard_cycles (int; default 2)
+            --  Number of periods of f to discard from the beginning of the signal.
+
+            plot (bool; default False)
+            --  Make a diagnostic plot of signals being compared, along with calculated values of gain and phase-shift.
+
+        Returns:
+            Tuple of gain and phase-shift (radians).
+        """
+
+        # Get binned firing rate and current.
+        bin_centres, firing_rate, I_inj = self.get_firing_rate(bin_width, return_I = True)
+
+        # Discard `discard_cycles` periods of f from beginning of all signals.
+        # Avoids distortion from non-equilibrium state of simulation at initial condition.
+        bin_centres     = bin_centres[int(discard_cycles * 1e3 / (f * bin_width)):]
+        firing_rate     = firing_rate[int(discard_cycles * 1e3 / (f * bin_width)):]
+        I_inj           = I_inj[int(discard_cycles * 1e3 / (f * bin_width)):]
+
+        # Extract gain and phase-shift.
+        I_ampli, I_phase = self._dft_single_freq(I_inj, f, 1e3 / bin_width, return_complex = False)
+        firing_ampli, firing_phase = self._dft_single_freq(firing_rate, f, 1e3 / bin_width, return_complex = False)
+
+        gain = firing_ampli / I_ampli
+        phase_shift = firing_phase - I_phase
+
+        # Optionally, make a diagnostic plot.
+        if plot:
+
+            plt.figure(figsize = (8, 7))
+
+            plt.suptitle('Gain plot at {}Hz'.format(f))
+
+            firing_plot = plt.subplot(111)
+            firing_plot.plot(bin_centres, firing_rate, 'r-')
+            firing_plot.set_ylabel('Firing rate (Hz)', color = 'r')
+            firing_plot.set_xlabel('Time (ms)')
+
+            I_plot = firing_plot.twinx()
+            I_plot.plot(bin_centres, I_inj, 'k-')
+            I_plot.set_ylabel('I (nA)')
+
+            firing_plot.text(1, 1.02,
+            'Gain: {:.3f}\nPhase-shift: {:.1f}'.format(gain, phase_shift),
+            ha = 'right', va = 'bottom', transform = firing_plot.transAxes)
+
+            plt.subplots_adjust(top = 0.9)
+
+            plt.show()
+
+        # Return gain and phase-shift.
+        return (gain, phase_shift)

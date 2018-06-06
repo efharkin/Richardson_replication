@@ -22,7 +22,7 @@ test_current = 0.024 * np.sin(t * 2 * np.pi / per) + 0.35
 I_N = 0.11
 
 I, V_mat, m_mat, h_mat, n_mat, Ihf_mat, Ihs_mat, spks, dt_ = test_mod.simulate(
-    test_current, I_N, -60, no_neurons, -30, 2, dt
+    test_current, -60, no_neurons, I_N = I_N, spk_detect_thresh = -30, spk_detect_tref = 2, dt = dt
 )
 
 
@@ -68,7 +68,8 @@ test_current = 0.024 * np.sin(t * 2 * np.pi / per) + 1.7
 I_N = 0.11
 
 I, V_mat, m_mat, h_mat, n_mat, p_mat, q_mat, spks, dt_ = test_mod2.simulate(
-    test_current, I_N, -60, no_neurons, -30, 2, dt
+    test_current, -60, no_neurons, I_N = I_N, spk_detect_thresh = -30,
+    spk_detect_tref = 2, dt = dt
 )
 
 
@@ -110,7 +111,7 @@ t = np.arange(0, 500, dt)
 test_current = 0.024 * np.sin(t * 2 * np.pi / 200) + 0.3
 V0 = -60
 
-test_sim = Cond.simulation(test_current, I_N, test_mod, no_neurons, V0, dt)
+test_sim = Cond.simulation(test_current, V0, test_mod, no_neurons, I_N = I_N, dt = dt)
 test_sim.get_spk_mat()
 test_sim.get_spk_inds()
 test_sim.get_spk_times()
@@ -120,7 +121,7 @@ test_sim.get_firing_rate()
 
 test_sim.firing_rate_plot()
 
-test_sim2 = Cond.simulation(test_current, I_N, test_mod2, no_neurons, V0, dt)
+test_sim2 = Cond.simulation(test_current, V0, test_mod2, no_neurons, I_N = I_N, dt = dt)
 test_sim2.firing_rate_plot()
 
 #%% TEST RETRIEVAL OF BINNED CURRENT AND FIRING RATE TOGETHER
@@ -166,7 +167,7 @@ for freq in [10, 50, 100]:
     t = np.arange(0, no_cycles * 1e3 / freq, dt)
     test_current = 0.05 * np.sin(t * 2 * np.pi * freq * 1e-3) + 0.9
 
-    test_sim = Cond.simulation(test_current, I_N, test_mod2, no_neurons, V0, dt)
+    test_sim = Cond.simulation(test_current, V0, test_mod2, no_neurons, I_N = I_N, dt = dt)
 
     gain, phase = test_sim.extract_IO_gain_phase(freq, subthreshold = True,
         bin_width = bin_width, discard_cycles = discard_cycles, plot = True)
@@ -194,3 +195,18 @@ plt.xlabel('Frequency (Hz)')
 
 plt.tight_layout()
 plt.show()
+
+
+#%% TEST SYNAPTIC CONDUCTANCE SIMULATION
+
+no_neurons = 10
+mod1 = Cond.model1()
+
+syn_noise = Cond.synaptic_noise(0.01, 0.0005, 3, 0.0085, 0.0005, 10)
+
+t = np.arange(0, 500, dt)
+test_current = np.ones(len(t))
+ge, gi = syn_noise.realize((no_neurons, len(test_current)), dt = dt)
+
+test_sim1 = Cond.simulation(test_current, V0, mod1, no_neurons, ge = ge, Ee = 0, gi = gi, Ei = -75, dt = dt)
+test_sim2 = Cond.simulation(test_current, V0, test_mod2, no_neurons, ge = ge, Ee = 0, gi = gi, Ei = -75, dt = dt)

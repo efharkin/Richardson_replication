@@ -147,26 +147,29 @@ plt.show()
 
 #%% TEST GAIN EXTRACTION
 
-no_neurons = 50
+no_neurons = 1
 V0 = -60
-I_N = 0.5
+I_N = 0
 bin_width = 2
 dt = 0.1
+no_cycles = 50
+discard_cycles = 5
 
 freqs_ = []
 gains_ = []
 phases_ = []
 
-for freq in [5, 10, 50, 100]:
+for freq in [10, 50, 100]:
 
     print('\rSimulating frequency {}'.format(freq), end = '')
 
-    t = np.arange(0, 20 * 1e3 / freq, dt)
-    test_current = 0.3 * np.sin(t * 2 * np.pi * freq * 1e-3) + 3
+    t = np.arange(0, no_cycles * 1e3 / freq, dt)
+    test_current = 0.05 * np.sin(t * 2 * np.pi * freq * 1e-3) + 0.9
 
     test_sim = Cond.simulation(test_current, I_N, test_mod2, no_neurons, V0, dt)
 
-    gain, phase = test_sim.extract_IO_gain_phase(freq, bin_width = bin_width, plot = True)
+    gain, phase = test_sim.extract_IO_gain_phase(freq, subthreshold = True,
+        bin_width = bin_width, discard_cycles = discard_cycles, plot = True)
 
     freqs_.append(freq)
     gains_.append(gain)

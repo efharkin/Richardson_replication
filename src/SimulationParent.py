@@ -171,7 +171,7 @@ class Simulation(abc.ABC):
             return (amplitude, phase)
 
 
-    def extract_IO_gain_phase(self, f, bin_width = 1, discard_cycles = 2, plot = False):
+    def extract_IO_gain_phase(self, f, subthreshold = False, bin_width = 1, discard_cycles = 2, plot = False):
 
         """
         Extract the gain and phase-shift of the firing response vs. input current at a specified frequency.
@@ -181,8 +181,11 @@ class Simulation(abc.ABC):
             f (float)
             --  Frequency at which to get gain and phase shift.
 
+            subthreshold (bool; default False)
+            --  Calculate the gain/phase-shift on subthreshold voltage rather than firing rate.
+
             bin_width (float; default 1ms)
-            --  Firing rate bin size (ms).
+            --  Firing rate bin size (ms). (Only used if subthreshold set to False.)
 
             discard_cycles (int; default 2)
             --  Number of periods of f to discard from the beginning of the signal.
@@ -194,21 +197,36 @@ class Simulation(abc.ABC):
             Tuple of gain and phase-shift (radians).
         """
 
-        # Get binned firing rate and current.
-        bin_centres, firing_rate, I_inj = self.get_firing_rate(bin_width, return_I = True)
+        if not subthreshold:
+            # Get binned firing rate and current.
+            t, output_signal, I_inj = self.get_firing_rate(bin_width, return_I = True)
+        else:
+
+            # Subthreshold gain cannot be computed if there are spks.
+            # Check for spks and abort if any are found.
+            if np.any(self.spks):
+                raise ValueError('Subthreshold gain cannot be computed if there are spikes in the recording.')
+
+            # Get subthreshold voltage and injected current.
+            t = self.get_t_vec()
+            output_signal = self.V.mean(axis = 0)
+            I_inj = self.I.mean(axis = 0)
+
+            bin_width = self.dt
+
 
         # Discard `discard_cycles` periods of f from beginning of all signals.
         # Avoids distortion from non-equilibrium state of simulation at initial condition.
-        bin_centres     = bin_centres[int(discard_cycles * 1e3 / (f * bin_width)):]
-        firing_rate     = firing_rate[int(discard_cycles * 1e3 / (f * bin_width)):]
+        t               = t[int(discard_cycles * 1e3 / (f * bin_width)):]
+        output_signal   = output_signal[int(discard_cycles * 1e3 / (f * bin_width)):]
         I_inj           = I_inj[int(discard_cycles * 1e3 / (f * bin_width)):]
 
         # Extract gain and phase-shift.
         I_ampli, I_phase = self._dft_single_freq(I_inj, f, 1e3 / bin_width, return_complex = False)
-        firing_ampli, firing_phase = self._dft_single_freq(firing_rate, f, 1e3 / bin_width, return_complex = False)
+        output_ampli, output_phase = self._dft_single_freq(output_signal, f, 1e3 / bin_width, return_complex = False)
 
-        gain = firing_ampli / I_ampli
-        phase_shift = firing_phase - I_phase
+        gain = output_ampli / I_ampli
+        phase_shift = output_phase - I_phase
 
         # Optionally, make a diagnostic plot.
         if plot:
@@ -217,18 +235,18 @@ class Simulation(abc.ABC):
 
             plt.suptitle('Gain plot at {}Hz'.format(f))
 
-            firing_plot = plt.subplot(111)
-            firing_plot.plot(bin_centres, firing_rate, 'r-')
-            firing_plot.set_ylabel('Firing rate (Hz)', color = 'r')
-            firing_plot.set_xlabel('Time (ms)')
+            output_plot = plt.subplot(111)
+            output_plot.plot(t, output_signal, 'r-')
+            output_plot.set_ylabel('Output', color = 'r')
+            output_plot.set_xlabel('Time (ms)')
 
-            I_plot = firing_plot.twinx()
-            I_plot.plot(bin_centres, I_inj, 'k-')
+            I_plot = output_plot.twinx()
+            I_plot.plot(t, I_inj, 'k-')
             I_plot.set_ylabel('I (nA)')
 
-            firing_plot.text(1, 1.02,
+            output_plot.text(1, 1.02,
             'Gain: {:.3f}\nPhase-shift: {:.1f}'.format(gain, phase_shift),
-            ha = 'right', va = 'bottom', transform = firing_plot.transAxes)
+            ha = 'right', va = 'bottom', transform = output_plot.transAxes)
 
             plt.subplots_adjust(top = 0.9)
 

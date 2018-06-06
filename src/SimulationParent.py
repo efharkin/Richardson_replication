@@ -79,18 +79,23 @@ class Simulation(abc.ABC):
             Tuple of bin centres and binned firing rate.
         """
 
-        inst_firing_rate = self.spks.sum(axis = 0) / (self.replicates * self.dt) * 1e3
+        spks_sum = self.spks.sum(axis = 0)
 
         if bin_width is None:
+
+            inst_firing_rate = spks_sum / (self.replicates * self.dt) * 1e3
+
             if not return_I:
                 return (self.get_t_vec(), inst_firing_rate)
             else:
                 return (self.get_t_vec(), inst_firing_rate, self.I.mean(axis = 0))
         else:
+
             firing_rate_bins = np.arange(0, self.get_t_vec()[-1] + bin_width - self.dt, bin_width)
-            binned_firing_rate, bin_edges, _ = stats.binned_statistic(
-                self.get_t_vec(), inst_firing_rate, 'mean', firing_rate_bins
+            binned_spks_sum, bin_edges, _ = stats.binned_statistic(
+                self.get_t_vec(), spks_sum, 'sum', firing_rate_bins
                 )
+            binned_firing_rate = binned_spks_sum / (self.replicates * bin_width) * 1e3
 
             fr_bin_centres = (firing_rate_bins[1:] + firing_rate_bins[:-1]) / 2
 

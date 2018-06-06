@@ -424,7 +424,7 @@ class simulation(object):
 
         return spk_times_ls
 
-    def get_firing_rate(self, bin_width = 10):
+    def get_firing_rate(self, bin_width = 10, return_I = False):
 
         """
         Compute binned firing rate
@@ -441,7 +441,10 @@ class simulation(object):
         inst_firing_rate = self.spks.sum(axis = 0) / (self.replicates * self.dt) * 1e3
 
         if bin_width is None:
-            return (self.get_t_vec(), inst_firing_rate)
+            if not return_I:
+                return (self.get_t_vec(), inst_firing_rate)
+            else:
+                return (self.get_t_vec(), inst_firing_rate, self.I.mean(axis = 0))
         else:
             firing_rate_bins = np.arange(0, self.get_t_vec()[-1] + bin_width - self.dt, bin_width)
             binned_firing_rate, bin_edges, _ = stats.binned_statistic(
@@ -450,7 +453,14 @@ class simulation(object):
 
             fr_bin_centres = (firing_rate_bins[1:] + firing_rate_bins[:-1]) / 2
 
-            return (fr_bin_centres, binned_firing_rate)
+            if not return_I:
+                return (fr_bin_centres, binned_firing_rate)
+            else:
+                binned_I, _, _ = stats.binned_statistic(
+                self.get_t_vec(), self.I.mean(axis = 0), 'mean', firing_rate_bins
+                )
+
+                return (fr_bin_centres, binned_firing_rate, binned_I)
 
 
     ### Method to get time vector

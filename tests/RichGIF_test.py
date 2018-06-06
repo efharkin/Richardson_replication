@@ -71,3 +71,25 @@ test_sim.basic_plot()
 test_sim.get_firing_rate()
 
 test_sim.firing_rate_plot('doc/img/fig1.png')
+
+#%% TEST RETRIEVAL OF BINNED CURRENT AND FIRING RATE TOGETHER
+
+bin_width = 5
+bin_centres, binned_fr, binned_I = test_sim.get_firing_rate(bin_width = bin_width, return_I = True)
+
+plt.figure(figsize = (10, 6))
+
+plt.suptitle('Firing rate + current binning test')
+
+ax = plt.subplot(211)
+plt.bar(bin_centres, binned_fr, width = bin_width, edgecolor = 'k', facecolor = 'r')
+plt.ylabel('Firing rate (Hz)')
+ax.set_xticklabels([])
+
+plt.subplot(212)
+plt.bar(bin_centres, binned_I, width = bin_width, edgecolor = 'k', facecolor = 'none')
+plt.xlabel('Time (ms)')
+plt.ylabel('I (nA)')
+
+plt.subplots_adjust(top = 0.9)
+plt.show()

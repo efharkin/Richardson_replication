@@ -143,6 +143,8 @@ ha = 'center',
 arrowprops = {'arrowstyle': '->'}
 )
 plt.ylim(0, 30)
+plt.xlim(1e-1, 1e3)
+mod1amp_plot.set_xticklabels(['','$0.1$', '$1$', '$10$', '$100$', '$1000$'])
 plt.ylabel('Impedance (M$\Omega$)')
 plt.xlabel('Frequency (Hz)')
 
@@ -150,6 +152,8 @@ mod1phase_plot = plt.subplot(spec[0, 1])
 mod1phase_plot.set_xscale('log')
 plt.title('\\textbf{{A2}} Model 1 phase shift', loc = 'left')
 plt.plot(mod1_analysis.freqs, 360 * mod1_analysis.phases / (2 * np.pi), 'ko')
+plt.xlim(1e-1, 1e3)
+mod1phase_plot.set_xticklabels(['','$0.1$', '$1$', '$10$', '$100$', '$1000$'])
 plt.ylabel('Phase shift (radians)')
 plt.xlabel('Frequency (Hz)')
 
@@ -165,6 +169,8 @@ ha = 'center',
 arrowprops = {'arrowstyle': '->'}
 )
 plt.ylim(0, 25)
+plt.xlim(1e-1, 1e3)
+mod2amp_plot.set_xticklabels(['','$0.1$', '$1$', '$10$', '$100$', '$1000$'])
 plt.ylabel('Impedance (M$\Omega$)')
 plt.xlabel('Frequency (Hz)')
 
@@ -172,6 +178,8 @@ mod2phase_plot = plt.subplot(spec[1, 1])
 mod2phase_plot.set_xscale('log')
 plt.title('\\textbf{{B2}} Model 2 phase shift', loc = 'left')
 plt.plot(mod2_analysis.freqs, 360 * mod2_analysis.phases / (2 * np.pi), 'ko')
+plt.xlim(1e-1, 1e3)
+mod2phase_plot.set_xticklabels(['','$0.1$', '$1$', '$10$', '$100$', '$1000$'])
 plt.ylabel('Phase shift (radians)')
 plt.xlabel('Frequency (Hz)')
 

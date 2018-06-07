@@ -9,7 +9,7 @@ import numpy as np
 def add_scalebar(x_units = None, y_units = None, anchor = (0.98, 0.02),
 y_label_space = 0.02, x_label_space = -0.02, bar_space = 0.06, x_on_left = True,
 linewidth = 3, remove_frame = True, omit_x = False, omit_y = False, round = True,
-ax = None):
+usetex = True, ax = None):
 
     """
     Automagically add a set of x and y scalebars to a matplotlib plot
@@ -72,9 +72,14 @@ ax = None):
         else:
             horizontalalignment = 'right'
 
+        if usetex:
+            y_label_text = '${}${}'.format(y_length, y_units)
+        else:
+            y_label_text = '{}{}'.format(y_length, y_units)
+
         ax.text(
         anchor[0] - y_label_space, anchor[1] + y_length_ax / 2 + bar_space,
-        '{}{}'.format(y_length, y_units),
+        y_label_text,
         verticalalignment = 'center', horizontalalignment = horizontalalignment,
         transform = ax.transAxes
         )
@@ -97,6 +102,7 @@ ax = None):
         if round:
             x_length = int(np.round(x_length))
 
+        # x-scalebar label
         if x_label_space <= 0:
             verticalalignment = 'top'
         else:
@@ -109,10 +115,14 @@ ax = None):
             Xx_text_coord = anchor[0] + x_length_ax / 2 + bar_space
             Xx_bar_coords = [anchor[0] + x_length_ax + bar_space, anchor[0] + bar_space]
 
-        # x-scalebar label
+        if usetex:
+            x_label_text = '${}${}'.format(x_length, x_units)
+        else:
+            x_label_text = '{}{}'.format(x_length, x_units)
+
         ax.text(
         Xx_text_coord, anchor[1] + x_label_space,
-        '{}{}'.format(x_length, x_units),
+        x_label_text,
         verticalalignment = verticalalignment, horizontalalignment = 'center',
         transform = ax.transAxes
         )

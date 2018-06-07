@@ -97,6 +97,13 @@ for freq in np.logspace(-1, 3, 16):
 mod1_analysis.convert_to_numpy()
 mod2_analysis.convert_to_numpy()
 
+for i in range(len(mod1_analysis.phases)):
+
+    if mod1_analysis.phases[i] > np.pi:
+        mod1_analysis.phases[i] -= 2 * np.pi
+    if mod2_analysis.phases[i] > np.pi:
+        mod2_analysis.phases[i] -= 2 * np.pi
+
 print('\nDone!')
 
 del mod1_sim, mod2_sim
@@ -142,7 +149,7 @@ plt.xlabel('Frequency (Hz)')
 mod1phase_plot = plt.subplot(spec[0, 1])
 mod1phase_plot.set_xscale('log')
 plt.title('\\textbf{{A2}} Model 1 phase shift', loc = 'left')
-plt.plot(mod1_analysis.freqs, mod1_analysis.phases, 'ko')
+plt.plot(mod1_analysis.freqs, 360 * mod1_analysis.phases / (2 * np.pi), 'ko')
 plt.ylabel('Phase shift (radians)')
 plt.xlabel('Frequency (Hz)')
 
@@ -164,7 +171,7 @@ plt.xlabel('Frequency (Hz)')
 mod2phase_plot = plt.subplot(spec[1, 1])
 mod2phase_plot.set_xscale('log')
 plt.title('\\textbf{{B2}} Model 2 phase shift', loc = 'left')
-plt.plot(mod2_analysis.freqs, mod2_analysis.phases, 'ko')
+plt.plot(mod2_analysis.freqs, 360 * mod2_analysis.phases / (2 * np.pi), 'ko')
 plt.ylabel('Phase shift (radians)')
 plt.xlabel('Frequency (Hz)')
 

@@ -69,8 +69,7 @@ mod2 = Cond.model2()
 mod1_analysis = Analysis()
 mod2_analysis = Analysis()
 
-
-for freq in [0.1, 0.25, 1, 2.5, 10, 25, 100, 250, 1000]:
+for freq in np.logspace(-1, 3, 16):
 
     print('\rSimulating frequency {}'.format(freq), end = '')
 

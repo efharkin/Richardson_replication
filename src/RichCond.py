@@ -1,6 +1,7 @@
 #%% IMPORT MODULES
 
 from copy import deepcopy
+import gc
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -102,8 +103,8 @@ class model1(object):
             raise NotImplementedError('Purely deterministic simulation not implemented. Use I_N = 0 instead.')
 
 
-        V_mat       = sim_tensor[0, :, :]
-        spks_mat    = sim_tensor[1, :, :].astype(np.bool)
+        V_mat       = sim_tensor[0]
+        spks_mat    = sim_tensor[1].astype(np.bool)
 
         return (I, V_mat, spks_mat, dt)
 
@@ -196,17 +197,19 @@ class model1(object):
 
             # Integrate gates
             m_vec = m_inf(V_t)
-            h_vec = h_vec + integrate_gate(h_inf(V_t), h_vec, tau_h(V_t), dt)
-            n_vec = n_vec + integrate_gate(n_inf(V_t), n_vec, tau_n(V_t), dt)
-            Ihf_vec = Ihf_vec + integrate_gate(Ihf_inf(V_t), Ihf_vec, tau_Ihf, dt)
-            Ihs_vec = Ihs_vec + integrate_gate(Ihs_inf(V_t), Ihs_vec, tau_Ihs, dt)
+            h_vec += integrate_gate(h_inf(V_t), h_vec, tau_h(V_t), dt)
+            n_vec += integrate_gate(n_inf(V_t), n_vec, tau_n(V_t), dt)
+            Ihf_vec += integrate_gate(Ihf_inf(V_t), Ihf_vec, tau_Ihf, dt)
+            Ihs_vec += integrate_gate(Ihs_inf(V_t), Ihs_vec, tau_Ihs, dt)
+
+            del dV_t_deterministic, dV_t_stochastic, spks_t, V_t
 
             # Increment t
             t += 1
 
 
         ### Return output in a tensor
-        return np.array([V_mat, spks_mat])
+        return (V_mat, spks_mat)
 
 
     @staticmethod
@@ -220,32 +223,69 @@ class model1(object):
         Ripe for acceleration with numba.jit(), except that numba throws an error when _simulate is called.
         """
 
-        ### Define functions.
-        integrate_gate = lambda x_inf_, x_0, tau_x_, dt_: (x_inf_ - x_0) / tau_x_ * dt_
+        ### Define numba-vectorized functions
+        @nb.vectorize([nb.float64(nb.float64)])
+        def m_inf(V):
+            alpha_m = -0.1 * (V + 32) / (np.exp(-0.1 * (V + 32)) - 1)
+            beta_m = 4 * np.exp(-(V + 57)/18)
+            return alpha_m / (alpha_m + beta_m)
 
-        # Define gating functions for m, h, n
-        x_inf = lambda alpha, beta, V: alpha(V) / (alpha(V) + beta(V))
-        tau_x = lambda alpha, beta, V: 1 / (26.12 * (alpha(V) + beta(V)))
+        @nb.vectorize([nb.float64(nb.float64)])
+        def h_inf(V):
+            alpha_h = 0.07 * np.exp(-(V + 46)/20)
+            beta_h = 1 / (np.exp(-0.1 * (V + 16)) + 1)
+            return alpha_h / (alpha_h + beta_h)
 
-        alpha_m = lambda V: -0.1 * (V + 32) / (np.exp(-0.1 * (V + 32)) - 1)
-        beta_m = lambda V: 4 * np.exp(-(V + 57)/18)
+        @nb.vectorize([nb.float64(nb.float64, nb.float64)])
+        def d_h(V, h):
 
-        alpha_h = lambda V: 0.07 * np.exp(-(V + 46)/20)
-        beta_h = lambda V: 1 / (np.exp(-0.1 * (V + 16)) + 1)
+            alpha_h = 0.07 * np.exp(-(V + 46)/20)
+            beta_h = 1 / (np.exp(-0.1 * (V + 16)) + 1)
 
-        alpha_n = lambda V: -0.01 * (V + 36) / (np.exp(-0.1 * (V + 36)) - 1)
-        beta_n = lambda V: 0.125 * np.exp(-(V + 46)/80)
+            h_inf = alpha_h / (alpha_h + beta_h)
+            tau_h = 1 / (26.12 * (alpha_h + beta_h))
 
-        m_inf = lambda V: x_inf(alpha_m, beta_m, V)
-        h_inf = lambda V: x_inf(alpha_h, beta_h, V)
-        n_inf = lambda V: x_inf(alpha_n, beta_n, V)
+            return (h_inf - h) / tau_h
 
-        tau_h = lambda V: tau_x(alpha_h, beta_h, V)
-        tau_n = lambda V: tau_x(alpha_n, beta_n, V)
+        @nb.vectorize([nb.float64(nb.float64)])
+        def n_inf(V):
+            alpha_n = -0.01 * (V + 36) / (np.exp(-0.1 * (V + 36)) - 1)
+            beta_n = 0.125 * np.exp(-(V + 46)/80)
+            return alpha_n / (alpha_n + beta_n)
 
-        # Define gating functions for Ih
-        Ihf_inf = lambda V: 1 / (1 + np.exp((V + 78) / 7))
-        Ihs_inf = lambda V: 1 / (1 + np.exp((V + 78) / 7))
+        @nb.vectorize([nb.float64(nb.float64, nb.float64)])
+        def d_n(V, n):
+
+            alpha_n = -0.01 * (V + 36) / (np.exp(-0.1 * (V + 36)) - 1)
+            beta_n = 0.125 * np.exp(-(V + 46)/80)
+
+            n_inf = alpha_n / (alpha_n + beta_n)
+            tau_n = 1 / (26.12 * (alpha_n + beta_n))
+
+            return (n_inf - n) / tau_n
+
+        @nb.vectorize([nb.float64(nb.float64)])
+        def Ihf_inf(V):
+            return 1 / (1 + np.exp((V + 78) / 7))
+
+        @nb.vectorize([nb.float64(nb.float64)])
+        def Ihs_inf(V):
+            return 1 / (1 + np.exp((V + 78) / 7))
+
+
+        @nb.jit(nb.int8[:](nb.float64[:], nb.float64, nb.float64[:], nb.int8[:,:]), cache = True)
+        def detect_spks(V_t, spk_detect_thresh, dV_t_deterministic, spks_subset):
+            output = np.zeros(V_t.shape, dtype = np.int8)
+
+            for i in range(len(V_t)):
+                bool_flag = (V_t[i] > spk_detect_thresh) and (dV_t_deterministic[i] > 0) and (spks_subset[i, :].sum() == 0)
+                if bool_flag:
+                    output[i] = 1
+                else:
+                    continue
+
+            return output
+
 
 
         ### Create matrices to store output
@@ -255,7 +295,7 @@ class model1(object):
         n_vec = np.empty(I.shape[0], dtype = np.float64)
         Ihf_vec = np.empty(I.shape[0], dtype = np.float64)
         Ihs_vec = np.empty(I.shape[0], dtype = np.float64)
-        spks_mat = np.zeros(I.shape, dtype = np.bool)
+        spks_mat = np.zeros(I.shape, dtype = np.int8)
 
 
         ### Set initial conditions
@@ -289,25 +329,29 @@ class model1(object):
             V_mat[:, t + 1] = V_t + dV_t_deterministic + dV_t_stochastic
 
             # Flag spks
-            spks_t = np.logical_and(
-                np.logical_and(V_t > spk_detect_thresh, dV_t_deterministic > 0),
-                ~np.any(spks_mat[:, t-spk_detect_tref_ind:t])
+            spks_mat[:, t] = detect_spks(
+                V_t, spk_detect_thresh, dV_t_deterministic,
+                spks_mat[:, t-spk_detect_tref_ind:t]
             )
-            spks_mat[spks_t, t] = True
 
             # Integrate gates
             m_vec = m_inf(V_t)
-            h_vec = h_vec + integrate_gate(h_inf(V_t), h_vec, tau_h(V_t), dt)
-            n_vec = n_vec + integrate_gate(n_inf(V_t), n_vec, tau_n(V_t), dt)
-            Ihf_vec = Ihf_vec + integrate_gate(Ihf_inf(V_t), Ihf_vec, tau_Ihf, dt)
-            Ihs_vec = Ihs_vec + integrate_gate(Ihs_inf(V_t), Ihs_vec, tau_Ihs, dt)
+            h_vec += d_h(V_t, h_vec) * dt
+            n_vec += d_n(V_t, n_vec) * dt
+            Ihf_vec += (Ihf_inf(V_t) - Ihf_vec) / tau_Ihf * dt
+            Ihs_vec += (Ihs_inf(V_t) - Ihs_vec) / tau_Ihs * dt
+
+            del dV_t_deterministic, dV_t_stochastic, V_t
+
+            if t % 100 == 0:
+                gc.collect()
 
             # Increment t
             t += 1
 
 
         ### Return output in a tensor
-        return np.array([V_mat, spks_mat])
+        return V_mat, spks_mat
 
 
 class model2(object):
@@ -389,8 +433,8 @@ class model2(object):
 
             raise NotImplementedError('Purely deterministic simulation not implemented. Use I_N = 0 instead.')
 
-        V_mat       = sim_tensor[0, :, :]
-        spks_mat    = sim_tensor[1, :, :].astype(np.bool)
+        V_mat       = sim_tensor[0]
+        spks_mat    = sim_tensor[1].astype(np.bool)
 
         return (I, V_mat, spks_mat, dt)
 
@@ -484,17 +528,19 @@ class model2(object):
 
             # Integrate gates
             m_vec = m_inf(V_t)
-            h_vec = h_vec + integrate_gate(h_inf(V_t), h_vec, tau_h(V_t), dt)
-            n_vec = n_vec + integrate_gate(n_inf(V_t), n_vec, tau_n(V_t), dt)
+            h_vec += integrate_gate(h_inf(V_t), h_vec, tau_h(V_t), dt)
+            n_vec += integrate_gate(n_inf(V_t), n_vec, tau_n(V_t), dt)
             p_vec = p_inf(V_t)
-            q_vec = q_vec + integrate_gate(q_inf(V_t), q_vec, tau_q, dt)
+            q_vec += integrate_gate(q_inf(V_t), q_vec, tau_q, dt)
+
+            del dV_t_deterministic, dV_t_stochastic, spks_t, V_t
 
             # Increment t
             t += 1
 
 
         ### Return output in a tensor
-        return np.array([V_mat, spks_mat])
+        return (V_mat, spks_mat)
 
     @staticmethod
     def _simulate_syn(I, V0, ge, Ee, gi, Ei, C, gl, El, gNa, ENa, gK, EK, gNaP, gKs, tau_q,
@@ -507,32 +553,68 @@ class model2(object):
         Ripe for acceleration with numba.jit(), except that numba throws an error when _simulate is called.
         """
 
-        ### Define functions.
-        integrate_gate = lambda x_inf_, x_0, tau_x_, dt_: (x_inf_ - x_0) / tau_x_ * dt_
+        ### Define numba-vectorized functions
+        @nb.vectorize([nb.float64(nb.float64)])
+        def m_inf(V):
+            alpha_m = -0.1 * (V + 32) / (np.exp(-0.1 * (V + 32)) - 1)
+            beta_m = 4 * np.exp(-(V + 57)/18)
+            return alpha_m / (alpha_m + beta_m)
 
-        # Define gating functions for m, h, n
-        x_inf = lambda alpha, beta, V: alpha(V) / (alpha(V) + beta(V))
-        tau_x = lambda alpha, beta, V: 1 / (26.12 * (alpha(V) + beta(V)))
+        @nb.vectorize([nb.float64(nb.float64)])
+        def h_inf(V):
+            alpha_h = 0.07 * np.exp(-(V + 46)/20)
+            beta_h = 1 / (np.exp(-0.1 * (V + 16)) + 1)
+            return alpha_h / (alpha_h + beta_h)
 
-        alpha_m = lambda V: -0.1 * (V + 32) / (np.exp(-0.1 * (V + 32)) - 1)
-        beta_m = lambda V: 4 * np.exp(-(V + 57)/18)
+        @nb.vectorize([nb.float64(nb.float64, nb.float64)])
+        def d_h(V, h):
 
-        alpha_h = lambda V: 0.07 * np.exp(-(V + 46)/20)
-        beta_h = lambda V: 1 / (np.exp(-0.1 * (V + 16)) + 1)
+            alpha_h = 0.07 * np.exp(-(V + 46)/20)
+            beta_h = 1 / (np.exp(-0.1 * (V + 16)) + 1)
 
-        alpha_n = lambda V: -0.01 * (V + 36) / (np.exp(-0.1 * (V + 36)) - 1)
-        beta_n = lambda V: 0.125 * np.exp(-(V + 46)/80)
+            h_inf = alpha_h / (alpha_h + beta_h)
+            tau_h = 1 / (26.12 * (alpha_h + beta_h))
 
-        m_inf = lambda V: x_inf(alpha_m, beta_m, V)
-        h_inf = lambda V: x_inf(alpha_h, beta_h, V)
-        n_inf = lambda V: x_inf(alpha_n, beta_n, V)
+            return (h_inf - h) / tau_h
 
-        tau_h = lambda V: tau_x(alpha_h, beta_h, V)
-        tau_n = lambda V: tau_x(alpha_n, beta_n, V)
+        @nb.vectorize([nb.float64(nb.float64)])
+        def n_inf(V):
+            alpha_n = -0.01 * (V + 36) / (np.exp(-0.1 * (V + 36)) - 1)
+            beta_n = 0.125 * np.exp(-(V + 46)/80)
+            return alpha_n / (alpha_n + beta_n)
 
-        # Define gating functions for additional conductances
-        p_inf = lambda V: 1 / (1 + np.exp(-(V + 51) / 5))
-        q_inf = lambda V: 1 / (1 + np.exp(-(V + 34) / 6.5))
+        @nb.vectorize([nb.float64(nb.float64, nb.float64)])
+        def d_n(V, n):
+
+            alpha_n = -0.01 * (V + 36) / (np.exp(-0.1 * (V + 36)) - 1)
+            beta_n = 0.125 * np.exp(-(V + 46)/80)
+
+            n_inf = alpha_n / (alpha_n + beta_n)
+            tau_n = 1 / (26.12 * (alpha_n + beta_n))
+
+            return (n_inf - n) / tau_n
+
+        @nb.vectorize([nb.float64(nb.float64)])
+        def p_inf(V):
+            return 1 / (1 + np.exp(-(V + 51) / 5))
+
+        @nb.vectorize([nb.float64(nb.float64)])
+        def q_inf(V):
+            return 1 / (1 + np.exp(-(V + 34) / 6.5))
+
+
+        @nb.jit(nb.int8[:](nb.float64[:], nb.float64, nb.float64[:], nb.int8[:,:]), cache = True)
+        def detect_spks(V_t, spk_detect_thresh, dV_t_deterministic, spks_subset):
+            output = np.zeros(V_t.shape, dtype = np.int8)
+
+            for i in range(len(V_t)):
+                bool_flag = (V_t[i] > spk_detect_thresh) and (dV_t_deterministic[i] > 0) and (spks_subset[i, :].sum() == 0)
+                if bool_flag:
+                    output[i] = 1
+                else:
+                    continue
+
+            return output
 
 
         ### Create matrices to store output
@@ -542,7 +624,7 @@ class model2(object):
         n_vec = np.empty(I.shape[0], dtype = np.float64)
         p_vec = np.empty(I.shape[0], dtype = np.float64)
         q_vec = np.empty(I.shape[0], dtype = np.float64)
-        spks_mat = np.zeros(I.shape, dtype = np.bool)
+        spks_mat = np.zeros(I.shape, dtype = np.int8)
 
 
         ### Set initial conditions
@@ -577,25 +659,26 @@ class model2(object):
             V_mat[:, t + 1] = V_t + dV_t_deterministic + dV_t_stochastic
 
             # Flag spks
-            spks_t = np.logical_and(
-                np.logical_and(V_t > spk_detect_thresh, dV_t_deterministic > 0),
-                ~np.any(spks_mat[:, t-spk_detect_tref_ind:t])
-            )
-            spks_mat[spks_t, t] = True
+            spks_mat[:, t] = detect_spks(V_t, spk_detect_thresh, dV_t_deterministic, spks_mat[:, (t-spk_detect_tref_ind):t])
 
             # Integrate gates
             m_vec = m_inf(V_t)
-            h_vec = h_vec + integrate_gate(h_inf(V_t), h_vec, tau_h(V_t), dt)
-            n_vec = n_vec + integrate_gate(n_inf(V_t), n_vec, tau_n(V_t), dt)
+            h_vec += d_h(V_t, h_vec) * dt
+            n_vec += d_n(V_t, n_vec) * dt
             p_vec = p_inf(V_t)
-            q_vec = q_vec + integrate_gate(q_inf(V_t), q_vec, tau_q, dt)
+            q_vec += (q_inf(V_t) - q_vec) / tau_q * dt
+
+            del dV_t_deterministic, dV_t_stochastic, V_t
+
+            if t % 100 == 0:
+                gc.collect()
 
             # Increment t
             t += 1
 
 
         ### Return output in a tensor
-        return np.array([V_mat, spks_mat])
+        return (V_mat, spks_mat)
 
 
 

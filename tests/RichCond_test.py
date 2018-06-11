@@ -193,17 +193,18 @@ plt.show()
 
 #%% TEST SYNAPTIC CONDUCTANCE SIMULATION
 
-no_neurons = 10
+no_neurons = 200
 mod1 = Cond.model1()
+mod2 = Cond.model2()
 
 syn_noise = Cond.synaptic_noise(0.01, 0.0005, 3, 0.0085, 0.0005, 10)
 
-t = np.arange(0, 500, dt)
+t = np.arange(0, 5000, dt)
 test_current = np.ones(len(t))
 ge, gi = syn_noise.realize((no_neurons, len(test_current)), dt = dt)
 
 test_sim1 = Cond.simulation(test_current, V0, mod1, no_neurons, ge = ge, Ee = 0, gi = gi, Ei = -75, dt = dt)
-test_sim2 = Cond.simulation(test_current, V0, test_mod2, no_neurons, ge = ge, Ee = 0, gi = gi, Ei = -75, dt = dt)
+test_sim2 = Cond.simulation(test_current, V0, mod2, no_neurons, ge = ge, Ee = 0, gi = gi, Ei = -75, dt = dt)
 
 test_sim1.basic_plot()
 test_sim2.basic_plot()

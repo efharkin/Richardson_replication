@@ -2,10 +2,13 @@
 
 import pickle
 import multiprocessing as mp
+import gc
 
 import numpy as np
 
 import sys
+import os
+os.chdir('/Users/eharkin/Documents/School/Grad work/Courses/Computational summer school/Richardson_replication')
 sys.path.append('./src')
 sys.path.append('./replicated_figures')
 
@@ -68,6 +71,8 @@ class Analysis(object):
 
         # Generate enough synaptic noise for the longest simulation.
         # Will be subsetted for shorter simulations to reduce compute time.
+        if verbose:
+            print('Realizing noise.')
         no_noise_timesteps = 50000#int(no_cycles * 1e3 / (min(freqs) * dt))
         synaptic_noise.realize((no_neurons, no_noise_timesteps), dt)
 
@@ -115,12 +120,17 @@ class Analysis(object):
                 gi = synaptic_noise.gi[:, :oscillating_current.shape[1]], Ei = -75,
                 dt = dt)
 
+            if verbose:
+                print('Extracting IO gain/phase.')
             gain, phase = mod_sim.extract_IO_gain_phase(freq, subthreshold = False,
                 bin_width = bin_width, discard_cycles = discard_cycles_internal, plot = plot)
 
             self.freqs.append(freq)
             self.gains.append(gain)
             self.phases.append(phase)
+
+            del mod_sim, t, oscillating_current
+            gc.collect()
 
         self.convert_to_numpy()
 

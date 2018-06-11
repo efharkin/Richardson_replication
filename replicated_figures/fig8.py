@@ -1,17 +1,16 @@
 #%% IMPORT MODULES
 
+import pickle
 import multiprocessing as mp
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gs
 
 import sys
 sys.path.append('./src')
 sys.path.append('./replicated_figures')
 
 import RichCond as Cond
-import pltools
+
 
 
 #%% PERFORM SIMULATIONS
@@ -29,11 +28,6 @@ bin_width = 2
 noise_A = Cond.synaptic_noise(0.01, 0.0005, 3, 0.0085, 0.0005, 10)
 noise_B = Cond.synaptic_noise(0.01, 0.01, 3, 0.015, 0.01, 10)
 
-"""
-test_sim = Cond.simulation(1.2 * np.ones(100000), -65, mod2, replicates = 2, ge = noise_B.ge, Ee = 0, gi = noise_B.gi, Ei = -75, dt = dt)
-test_sim.spks.sum()/2
-test_sim.basic_plot()
-"""
 
 #%%
 
@@ -137,7 +131,7 @@ class Analysis(object):
 
 ### Perform simulations.
 
-no_points = 10
+no_points = 25
 
 def worker(input_dict):
 
@@ -232,28 +226,10 @@ inputs = [
     }
 ]
 
-min([1, 2, 3])
-
 if __name__ == '__main__':
-    p = mp.Pool(4)
+    p = mp.Pool(2)
     results = p.map(worker, inputs)
 
-#%%
-
-analysis_A = Analysis()
-analysis_B = Analysis()
-analysis_C = Analysis()
-analysis_D = Analysis()
-
-analysis_A.fr_gain(mod1, noise_A, no_neurons, V0, 0.8, 0.02,
-    freqs = np.linspace(2, 60, no_points),
-    no_cycles = 20, discard_cycles = 5, bin_width = bin_width, dt = dt)
-analysis_B.fr_gain(mod1, noise_B, no_neurons, V0, 0.7, 0.2,
-    freqs = np.linspace(2, 60, no_points),
-    no_cycles = 20, discard_cycles = 5, bin_width = bin_width, dt = dt)
-analysis_C.fr_gain(mod2, noise_A, no_neurons, V0, 2, 0.1,
-    freqs = np.linspace(2, 100, no_points),
-    no_cycles = 20, discard_cycles = 5, bin_width = bin_width, dt = dt)
-analysis_D.fr_gain(mod2, noise_B, no_neurons, V0, 1.2, 0.1,
-    freqs = np.linspace(2, 100, no_points),
-    no_cycles = 20, discard_cycles = 5, bin_width = bin_width, dt = dt)
+    with open('results_dump.pyc', 'wb') as f:
+        pickle.dump(f)
+        f.close()

@@ -117,7 +117,7 @@ class Simulation(abc.ABC):
         Return a time support vector for any one replicate.
         """
 
-        return np.arange(0, self.I.shape[1] * self.dt, self.dt)
+        return np.arange(0, self.I.shape[1] * self.dt, self.dt)[:self.I.shape[1]]
 
     def get_t_mat(self):
 

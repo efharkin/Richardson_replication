@@ -122,6 +122,8 @@ with open(PICKLE_PATH + 'fig3_mod2analysis.pyc', 'wb') as f:
 
 #%% UNPICKLE ANALYSIS
 
+PICKLE_PATH = './replicated_figures/'
+
 with open(PICKLE_PATH + 'fig3_mod1analysis.pyc', 'rb') as f:
     mod1_analysis = pickle.load(f)
 with open(PICKLE_PATH + 'fig3_mod2analysis.pyc', 'rb') as f:
@@ -173,7 +175,7 @@ plt.title('\\textbf{{A2}} Model 1 phase shift', loc = 'left')
 plt.plot(mod1_analysis.freqs, 360 * mod1_analysis.phases / (2 * np.pi), 'ko')
 plt.xlim(1e-1, 1e3)
 mod1phase_plot.set_xticklabels(['','$0.1$', '$1$', '$10$', '$100$', '$1000$'])
-plt.ylabel('Phase shift (radians)')
+plt.ylabel('Phase shift (degrees)')
 plt.xlabel('Frequency (Hz)')
 
 mod2amp_plot = plt.subplot(spec[1, 0])
@@ -199,7 +201,7 @@ plt.title('\\textbf{{B2}} Model 2 phase shift', loc = 'left')
 plt.plot(mod2_analysis.freqs, 360 * mod2_analysis.phases / (2 * np.pi), 'ko')
 plt.xlim(1e-1, 1e3)
 mod2phase_plot.set_xticklabels(['','$0.1$', '$1$', '$10$', '$100$', '$1000$'])
-plt.ylabel('Phase shift (radians)')
+plt.ylabel('Phase shift (degrees)')
 plt.xlabel('Frequency (Hz)')
 
 if save_path is not None:

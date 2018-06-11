@@ -1,0 +1,482 @@
+\documentclass[12pt]{article}
+\usepackage[margin = 1in]{geometry} % see geometry.pdf on how to lay out the page. There's lots.
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{siunitx}
+\usepackage{url}
+\usepackage{multirow}
+\usepackage{titlesec}
+\newcommand{\sectionbreak}{\clearpage}
+\usepackage{setspace}
+\usepackage{float}
+\doublespacing
+\geometry{letterpaper} % or letter or a5paper or ... etc
+% \geometry{landscape} % rotated page geometry
+
+\renewcommand{\vec}[1]{\mathbf{#1}}
+\newcommand{\beginsupplement}{%
+        \setcounter{table}{0}
+        \renewcommand{\thetable}{S\arabic{table}}%
+        \setcounter{figure}{0}
+        \renewcommand{\thefigure}{S\arabic{figure}}%
+     }
+
+% See the ``Article customise'' template for come common customisations
+
+\title{From simplified to complex\\resonant single-neuron models}
+\date{\today}
+\author{Emerson Harkin}
+
+%%% BEGIN DOCUMENT
+\begin{document}
+
+\begin{titlepage}
+
+    \singlespacing
+    \centering
+    \vspace*{3cm}
+    {\LARGE \bfseries From simplified to complex\\resonant single-neuron models \par}
+    \vspace{1.5cm}
+    {\large \scshape SSCND8 Final Project \par}
+    \vspace{3cm}
+    {\Large Emerson Harkin \\ 6817064 \par}
+    \vfill
+    {\large Department of Neuroscience, \\ University of Ottawa \par}
+    \vfill
+    {\large June 13, 2018}
+
+\end{titlepage}
+
+%\maketitle
+\pagenumbering{gobble}
+
+\newpage
+\pagenumbering{roman}
+\tableofcontents
+\listoffigures
+
+\newpage
+\pagenumbering{arabic}
+
+\section{Introduction}
+
+Oscillations in neural structures have been observed at a wide range of scales, from whole brain regions down to single cells, and are implicated in a variety of behaviours and cognitive processes.
+Oscillations at the level of mesoscale networks are thought to arise as the result of large numbers of neurons firing synchronously at some preferred frequency.
+However, prior to the work of Richardson \textit{et al.} \cite{richardson_subthreshold_2003}, it remained unclear what mechanisms might give rise to a firing rate preference for single neurons, and what constraints these unknown mechanisms might place on the expression of that preferred rate.
+In their 2003 paper, Richardson \textit{et al.} use complementary analytical and computational approaches to show that the frequency preferences of neurons in the subthreshold regime are translated into their firing behaviour only under noisy conditions.
+
+The frequency preferences of neurons in the subthreshold regime are readily mapped experimentally by injecting an oscillating current of increasing frequency during whole-cell patch clamp recording.
+During such an experiment preferred---or resonant---frequencies appear as impedance peaks, which in some systems have been tied to the activation and deactivation kinetics of individual ion channels.
+For example, in stellate cells of the medial entorrhinal cortex, expression of an impedance peak in the $\theta$ frequency band is sensitive to HCN channel blockade, and cell-to-cell variations in the kinetics of the $I_H$ current passed by HCN channels are correlated with differences in $\theta$ band resonance \cite{giocomo_time_2008}.
+That the firing activity of medial entorrhinal cortex neurons drives $\theta$ band local field potential oscillations in the hippocampus illustrates an intriguing correspondence between single-cell-level subthreshold resonance and network-level oscillations \cite{colgin_mechanisms_2013}.
+
+In theory, detailed Hodgkin-Huxley type neuron models provide a promising route to quantitatively link the characteristics of single neurons to network-level oscillations.
+These conductance-based models give a comprehensive account of the effects of individual currents on the integrative properties of individual neurons, and can be linearized to provide an analytical description of the contributions of specific conductances to subthreshold resonance \cite{hodgkin_quantitative_1952}.
+However, because Hodgkin-Huxley neurons explicitly model specific conductances rather than phenomena, results obtained using a model in which resonance arises from one mechanism can not necessarily be generalized to systems in which the same resonance arises via another.
+That is, a detailed demonstration of how $I_H$ in medial entorrhinal cortical cells leads to $\theta$ rhythm in the hippocampus, though worthwhile, may not necessarily provide insight into the generation of $\theta$ oscillations in other systems.
+
+To address this limitation of biophysically-detailed neuron models, Richardson \textit{et al.} describe a simplified leaky integrate-and-fire (LIF) neuron model that is able to capture the behaviour of complex conductance-based models in a more general way and using fewer parameters.
+The authors use this model to investigate how subthreshold resonance can be represented in neuronal firing rate dynamics.
+They show that oscillating inputs at the resonant frequency of the neuron do not necessarily lead to the largest modulations in firing rate; in fact, the firing rate resonance can occur at one of two distinct frequencies: the background firing rate of the neuron, \textit{or} the subthreshold resonant frequency.
+Which frequency is represented in the firing rate modulation depends on the amount of noise in the subthreshold dynamics of the neuron.
+Finally, the authors show that the results from the LIF model can be generalized to more complex Hodgin-Huxley based models that implement subthreshold resonance and noise via different mechanisms.
+
+In this report, I focus on replicating the effect of subthreshold noise on firing rate resonance in three neuron models described by \cite{richardson_subthreshold_2003}.
+I show that the authors' main findings can be reproduced using different numerical and analytic methods than described in the primary text, and extend the original analysis to include changes in phase of the output signal.
+
+
+
+\section{Numerical methods}
+
+\subsection{Neuron models}
+
+\subsubsection{Leaky integrate-and-fire neuron}
+
+The leaky integrate-and-fire (LIF) neuron model used by Richardson \textit{et al.} is defined by the subthreshold dynamics
+\begin{align}
+    C_m \frac{dv}{dt} &= I_{tot} - g_l v - g_1 w_1 \\
+    \tau_1 \frac{dw_1}{dt} &= v - w_1
+\end{align}
+where $v = V - V_{rest}$.
+The total applied external current $I_{tot} = I_0 + I_{sin}$ consists of a DC component $I_0$ used to set the neuron's baseline firing rate $r_0$, and a weak sinusoidal component $I_{sin}$ used to probe frequency-dependent modulations of the firing rate $r_1$ (see fig. \ref{fig:schematic}).
+The role of the time-dependent current $g_1w_1$ not usually found in LIF models is to introduce a subthreshold resonance at  a frequency $f_{res}$ near \SI{5}{\Hz}.
+A resting membrane potential $V_{rest}$ of \SI{-70}{\mV}, hard spike threshold at \SI{-50}{\mV}, and post-spike voltage reset to \SI{-56}{\mV} complete the model.
+All parameter values are as described in \cite{richardson_subthreshold_2003}.
+
+The LIF model contains only two intrinsic currents: a leak current $g_l v$ and a second current $g_1 w_1$ that evolves with a time-constant $\tau_1 = $ \SI{100}{\ms}.
+The LIF does not model any subthreshold currents with voltage-dependent activation or kinetics, nor does it explicitly model the currents that give rise to action potentials in real neurons.
+This model therefore contains only the bare minimum of elements required for the behaviour of a leaky integrator with a voltage-independent subthreshold resonance.
+
+\begin{figure}
+    \includegraphics[width = 6in]{img/fig1.png}
+    \caption[Firing rate modulation by weak oscillating input]{
+        Firing rate modulation by weak oscillating input.
+        \textit{A}: Subthreshold and firing activity of a LIF neuron receiving a weak sinusoidal input $I_{sin}(t) = I_1 \sin(2 \pi f_1 t)$.
+        \textit{B}: A stochastic term added to the subthreshold dynamics of the neuron depicted in \textit{A} leads to divergent firing behaviour across a population of LIF neurons.
+        \textit{C}: The average firing rate of the LIF neuron population displays a sinusoidal modulation of frequency $f_1$ and amplitude $r_1$ (not shown) around the mean rate $r_0$.
+        The ratio $\frac{r_1(f_1)}{I_1} = \vert A(f_1)\vert$ describes the estimated gain of the neuron at frequency $f_1$.
+        }
+    \label{fig:schematic}
+\end{figure}
+
+\subsubsection{Conductance-based models}
+
+Richardson \textit{et al.} make use of two conductance-based models, both of which consist of slightly modified Hodgkin-Huxley-type neurons with additional conductances added to introduce subthreshold resonance.
+
+Model 1, a neuron with $I_H$, is defined here as
+\begin{equation}
+    C_m \frac{dV}{dt} = I_{tot} - I_{l} - I_{Na} - I_K - I_H
+\end{equation}
+where the total external current applied to the neuron $I_{tot} = I_0 + I_1 + I_{syn}$. The currents generally take the form
+\begin{equation}
+    I_x = \bar{g}_x a^n b (V - E_x)
+    \label{eqn:HHcurrent}
+\end{equation}
+where $\bar{g}_x$ is the maximal conductance associated with the current, $a$ is a voltage-dependent activation variable, $b$ is a voltage-dependent inactivation variable ($b = 1$ for currents that do not inactivate), and $E_x$ is the reversal potential of the current.
+Time dynamics of the activation/inactivation variables are generally of the form
+\begin{equation}
+    \tau_a \frac{da}{dt} = a_{\infty} - a
+    \label{eqn:HHtime}
+\end{equation}
+
+Resonance in this model arises from the slow time dynamics and funny voltage dependence of $I_H$ that cause it to act as a high-pass frequency filter.
+$I_H$ is a depolarizing current that activates at hyperpolarized potentials, causing it to oppose voltage changes that occur over slower timescales than its activation kinetics.
+This high-pass filtering property interacts with the intrinsic low-pass filter of the cell membrane to create a pass-band (\textit{i.e.}, resonance) between the low frequencies filtered out by $I_H$ and the high frequencies filtered by the membrane.
+
+Model 2, a neuron with persistent sodium current ($I_{NaP}$) and a slow potassium current ($I_{Ks}$) is defined similarly by
+\begin{equation}
+    C_m \frac{dV}{dt} = I_{tot} - I_{l} - I_{Na} - I_K - I_{NaP} - I_{Ks}
+\end{equation}
+with currents defined as above in \textit{Eqns.} \ref{eqn:HHcurrent}-\ref{eqn:HHtime}.
+Richardson \textit{et al.} use two versions of this model for a subset of their experiments, one each with and without an inactivation gate on $I_{Ks}$.
+For the sake of simplicity, only the model containing the non-inactivating slow conductance $I_{Ks} = \bar{g}_{Ks} q (V - E_{K})$ was implemented here.
+
+Resonance in model 2 arises from the slow time dynamics of $I_{Ks}$ and is amplified by $I_{NaP}$.
+$I_{Ks}$ is a hyperpolarizing current that slowly activates at depolarized potentials, creating a high-pass effect much like $I_H$ but through an opposite mechanism.
+
+Two important simplifications were made by Richardson \textit{et al.} when constructing this set of models: the activation kinetics of both the fast and persistent sodium currents are taken to be instantaneous, and the kinetics of $I_H$ and $I_{Ks}$ are assumed to be voltage-independent.
+Of course, none of the models presented here account for neuron morphology or non-stationary input statistics.
+
+
+\subsection{Numerical simulations}
+
+The models described by Richardson \textit{et al.} were implemented in Python 3.6 using \texttt{numpy}, \texttt{numba}, and \texttt{multiprocessing} modules to improve performance.
+Full implementations of the models presented here, along with all code used to generate figures (and pickled copies of output from some simulations that were slow to compute) can be found at \path{github.com/efharkin/Richardson_replication}.
+
+Numerical simulations of the LIF and conductance-based models were performed using the Euler-Maruyama method with time-steps of \SI{100}{\us} and \SI{10}{\us}, respectively, rather than the second-order Runge-Kutta method and \SI{10}{\us} -- \SI{20}{\us} timesteps originally used by Richardson \textit{et al.}.
+As an example, the Euler-Maruyama method was applied to the integration of the LIF model with an added $\delta$-correlated white noise term as follows
+\begin{equation}
+    V(t + \Delta t) = V(t) + \frac{1}{C} \left[ (I_{tot} - g_l v - g_1 w_1) \Delta t + I_N \xi (t) \sqrt{\Delta t}\right]
+\end{equation}
+where $I_N$ is a noise scaling factor with arbitrary units.
+
+Simulation time was based on the period length of the sinusoidal input modulation being used, and ranged from 5--20 cycles of the input stimulus, with fewer cycles being used for lower frequency stimuli.
+To reduce the impact of the initial condition on the results, the first 1--5 cycles of each simulation were discarded before analysis.
+For firing-rate modulation experiments, 200--5000 neurons were simulated in parallel and their firing rate averaged across units in \SI{2}{\ms} time bins (see fig. \ref{fig:schematic} for an illustrative example using 100 neurons and \SI{10}{\ms} bins).
+The amplitude and phase of the stimulation frequency $f_1$ in the estimated mean firing rate were extracted using a discrete fourier transform
+\begin{equation}
+    \mathrm{DFT}_{f_1}(\vec{x}) = \sum_{n = 0}^{N - 1} x_n e^{-2 \pi i n f_1 \Delta t}
+\end{equation}
+at frequency $f_1$ where $\Delta t$ is the width of the time bin.\footnote{In contrast, Richardson \textit{et al.} obtain the amplitude and phase-shift of $f_1$ by fitting a sine wave to the firing rate histogram.}
+Note that because the amount of simulation time was always defined as an integer number of stimulus cycles, the DFT assumption of periodicity is met independent of the stimulation frequency.
+The gain of the firing rate was calculated from the fourier coefficients as
+\begin{equation}
+    \vert A(f_1) \vert = \frac{ \vert \mathrm{DFT}_{f_1}(r_1) \vert }{ \vert \mathrm{DFT}_{f_1}(I_{sin}^\prime) \vert }
+\end{equation}
+where $I_{sin}^\prime$ is the oscillating component of the input stimulus binned in the same manner as the firing rate.
+
+
+\section{Results}
+
+\subsection{Determinants of firing rate resonance}
+
+\begin{figure}
+    \includegraphics[width = 6in]{img/fig6.png}
+    \caption[Noise-dependent firing resonance in LIF neurons]{
+        Effect of subthreshold noise on firing-rate resonance in LIF neurons.
+        The model neurons and simulation parameters used here are exactly as described in fig. 6 of \cite{richardson_subthreshold_2003}.
+        \textit{A}: Under low-noise conditions, input frequencies near the baseline firing rate ($f_1 = r_0 = $ \SI{20}{\Hz}) are more strongly amplified than frequencies near the resonant frequency of the neuron ($f_1 = f_{res} = $ \SI{5}{\Hz}).
+        \textit{B}: Under high-noise conditions, input frequencies near the resonant frequency of the neuron ($f_1 = f_{res} = $ \SI{5}{\Hz}) are more strongly amplified.
+        \textit{C}: Gain and phase-shift of the firing response relative to $I_{sin}$ across a broad range of input frequencies.
+        The dotted line is the resonant frequency of the neuron $f_{res} = $ \SI{5}{\Hz} and the dashed line is the baseline firing rate $r_0 = $ \SI{20}{\Hz}.
+        }
+    \label{fig:lif_res}
+\end{figure}
+
+Simple neurons firing at a steady background rate $r_0$ display modulations in their firing rates in response to weak oscillating inputs (see fig. \ref{fig:schematic}).
+The amplitude of this modulation varies as a function of the frequency $f_1$ of the input being given, and can have peaks at the background firing rate $r_0$ or at the subthreshold resonant frequency of the neuron $f_{res}$, if one exists.
+To understand whether the preferred firing rate of the neuron (that is, the frequency $f_1$ at which the largest firing rate modulation is observed) will occur at $r_0$ or $f_{res}$, it is important to consider that while $r_0$ and $f_{res}$ are both constants for a given neuron at equilibrium, the same value of $r_0$ can be reached through two distinct mechanisms \textit{in vivo}.
+First, the neuron might fire deterministically at a rate $r_0$ in response to a given DC stimulus.
+Second, the neuron might fire stochastically at a rate $r_0$ in response to a weaker DC stimulus due to noise in the subthreshold voltage dynamics of the cell.
+Neurons held near their spike thresholds and receiving a barrage of synaptic input might fire in either regime depending on the relative proportions of slow (near DC) and fast (noisy) input.
+
+\subsection{Firing rate resonance in a simplified model}
+
+To begin to understand how deterministc vs. noise-driven firing affect the spiking frequency preference of neurons, I used the LIF model described by Richardson \textit{et al.} to simulate the firing activity of simple resonant neurons in response to weak oscillating inputs in the presence of varying amounts of noise in the subthreshold dynamics.
+Under conditions of low noise, the input frequency $f_1 = r_0 = $ \SI{20}{\Hz} leads to the largest firing rate modulations (see fig. \ref{fig:lif_res}A). However, when the subthreshold noise is substantial, $f_1 = f_{res} = $ \SI{5}{\Hz} is most strongly amplified (see fig. \ref{fig:lif_res}B).
+
+
+\subsection{Firing rate resonance in a biophysically-detailed model}
+
+To begin to address the question of whether the conclusions drawn from the analysis of the LIF neuron can be generalized to real neurons, I extended the experiments shown in fig. \ref{fig:lif_res} to a set of more physiologically realistic models.
+The cellular models used here are the conductance-based models sketched in 2.1.2, and the noise source is modelled after synaptic noise according to \cite{richardson_subthreshold_2003}.
+
+\begin{figure}
+    \includegraphics[width = 6in]{img/fig3.png}
+    \caption[Subthreshold resonance in conductance-based models]{
+        Subthreshold resonance in conductance-based models. Neurons were held near \SI{-65}{\mV} and the amplification of a weak sinusoidal input extracted using a DFT in much the same manner as described for spike trains. \textit{A}: Model 1, a Hodgkin-Huxley neuron with $I_H$. \textit{B}: Model 2, a Hodgkin-Huxley neuron with $I_{NaP}$ and $I_{Ks}$.
+        }
+    \label{fig:cond_sub}
+\end{figure}
+
+Because the subthreshold resonance of the conductance-based models is the result of a combination of several conductances acting on different timescales, the resonant frequencies of these neurons are not straightforward to infer from the model definitions.
+Therefore, I characterized the frequency filter of each model empirically by injecting a weak oscillating current while holding the cell near \SI{-65}{\mV} and extracting the signal gain in much the same way as described for firing rate.
+The resulting impedance curves display peaks near \SI{6.5}{\Hz} for model 1 (HH + $I_H$) and near \SI{30}{\Hz} for model 2 (HH + $I_{NaP}$ + $I_{Ks}$).
+
+\begin{figure}
+    \includegraphics[width = 6in]{img/fig8.png}
+    \caption[Noise-dependent firing resonance in conductance-based models]{
+        Effect of synaptic noise on firing-rate resonance in a more detailed physiological model.
+        Neurons are Hodgkin-Huxley based with an additional $I_H$ current (model 1) or additional persistent sodium and slow potassium currents (model 2), exactly as described in \cite{richardson_subthreshold_2003}.
+        Dotted lines indicate the resonant frequency $f_{res}$ of the neuron, and dashed lines indicate the baseline firing rate $r_0$.
+        Signal gain is presented as a fraction of the maximal value for each condition.
+        \textit{A}: Gain and phase-shift of the firing response relative to $I_{sin}$ in a Hodgkin-Huxley neuron with $I_H$.
+        Input stimulus and synaptic noise are as described in \cite{richardson_subthreshold_2003} figs. 8 A and B.
+        \textit{B}: Gain and phase-shift of the firing response relative to $I_{sin}$ in a Hodgkin-Huxley neuron with persistent sodium and slow potassium currents.
+        The amplitude $I_1$ of the oscillating current $I_{sin}$ was set to \SI{100}{\pico\ampere} and the synaptic noise was generated using the same parameters as in \textit{A}.
+        }
+    \label{fig:cond_f}
+\end{figure}
+
+When resonance in the suprathreshold regime of the augmented Hodgkin-Huxley neurons is examined, similar trends are observed as above in the analysis of the simplified neuron model (see fig. \ref{fig:lif_res}).
+In the case of model 1 (a neuron with $I_H$), the maximal firing rate modulation is seen at the backgrond firing frequency $r_0$ under conditions of low synaptic noise, while when the synaptic noise is increased, the firing rate resonance shifts to coincide with the subthreshold resonance (see fig. \ref{fig:cond_f}A).
+In model 2 (a neuron with $I_{NaP}$ and $I_{Ks}$) similar results are observed (see fig. \ref{fig:cond_f}B).
+
+It is interesting to note that both conductance-based models exhibit large phase advances in the low-noise regime when $f_1$ is near $r_0$ (see fig. \ref{fig:cond_f} A2 \& B2) that are not observed in the LIF model (see fig. \ref{fig:lif_res}).
+Note also that these phase advances are not observed in the subthreshold regime (see fig. \ref{fig:cond_sub} A2 \& B2).
+This is consistent with the idea that the fast, spike-generating currents not modelled in the LIF neuron and minimally-activated in the subthreshold regime regulate the phase of the oscillating input representation in the spiketrain through a mechanism that is dissociable from the subthreshold dynamics.
+
+
+\section{Discussion}
+
+The original paper by Richardson \textit{et al.} presents a detailed set of complementary analytical and computational analyses to map out the conditions under which subthreshold resonance can arise in point neurons, and how this subthreshold resonance can be translated into firing rate modulations.
+To understand what conditions must be met in order for subthreshold resonance to occur, the authors develop a low-dimensional two-variable point neuron model based on a leaky integrator with a time-dependent conductance.
+They show that this model is able to imitate a wide range of qualitative integrative behaviours (\textit{e.g.}, voltage sag or damped oscillations in response to current steps), and that resonance usually---but not always---arises when neurons express a positive (\textit{i.e.}, stabilizing) conductance with a time constant greater than that of the membrane (where the membrane time constant $\tau_m = R_m C_m$).
+This analysis, which is not replicated here, suggests that with careful parameter selection, the simplified model should be able to capture the behaviour of more complex models, and can serve as a convenient tool for understanding the coding properties of resonant neurons in a general sense.
+The authors then illustrate this point by using a LIF model based on their simplified two-variable model to investigate how subthreshold resonance is represented in spike trains, and further showing that the results they obtain with the two-variable model are qualitatively no different from those obtained with more complex conductance-based models.
+Specifically, Richardson \textit{et al.} show that subthreshold resonance becomes the dominant form of suprathreshold resonance only when there is a significant stochastic component to the subthreshold dynamics (which may stem from channel noise, noisy synaptic input, etc.)
+
+The numerical analysis of the simplified and conductance-based models presented here successfully replicates the major findings of Richardson \textit{et al.} with only a few minor quantitative differences.
+Briefly, I show in fig. \ref{fig:schematic} that weak oscillating input drives firing rate modulations (fig. 1 of \cite{richardson_subthreshold_2003});
+in fig. \ref{fig:lif_res} that the simplified model predicts that subthreshold resonance potently amplifies firing rate modulations only in the presence of significant sources of noise (fig. 6 of \cite{richardson_subthreshold_2003});
+and in fig. \ref{fig:cond_f} that this finding from the simplified model generalizes to more physiologically realistic conditions (figs. 8-9 from \cite{richardson_subthreshold_2003}).
+The consistency of these findings with the original manuscript is in spite of the lower precision numerical techniques used here.
+Specifically, I used the less precise Euler-Maruyama numerical integration method rather than a Runge-Kutta algorithm, along with five-fold larger simulation time-steps for the LIF model, and significantly shorter duration simulations throughout.
+That similar results were obtained even with these compromises suggests that the effect of noise on firing rate resonance observed by Richardson \textit{et al.} may be robust enough to be observed experimentally, even though the volume (and quality) of data available to experimentalists is much lower than what is described by the authors.
+
+One difference with respect to the results presented by Richardson \textit{et al.} is that in my hands a clear phase advance of the LIF firing rate modulation in the low-noise regime is not observed (see fig. \ref{fig:lif_res} here and fig. 6 in \cite{richardson_subthreshold_2003}).
+In the original paper, a phase advance of approx. \SI{5}{\degree}--\SI{10}{\degree} is observed in response to the \SI{10}{\Hz} stimulus, but in my results a phase shift of \SI{0}{\degree}--\SI{-5}{\degree} is seen.
+Given a \SI{100}{\ms} period length of a \SI{10}{\Hz} oscillation, a phase shift of \SI{10}{\degree} corresponds to \SI{2.8}{\ms}, which is only slightly larger than the \SI{2}{\ms} width of the firing rate bins used in my analysis.
+Using smaller \SI{1}{\ms} bins as described by Richardson \textit{et al.}, it may be possible to discriminate such small changes in phase.
+
+The results originally presented by Richardson \textit{et al.} and replicated here describe a new simplified neuron model that is able to capture important aspects of both the subthreshold and spiking behaviour of more complex models.
+Using this model, they show that subthreshold noise is required for neurons to express subthreshold resonance in their firing rate dynamics, and suggest that higher levels of noise may facilitate the communication of this subthreshold frequency preference to downstream targets.
+If spontaneous network oscillations arise from the common frequency preferences of individual units within ensembles of highly interconnected neurons, the noise contingency postulated by Richardson \textit{et al.} might suggest, seemingly paradoxically, that \textit{noise} at the level of individual neurons may be required to drive \textit{synchronous} oscillations at the network level.
+Because neuromodulators are able to modulate the amplitude of membrane noise independent of other sources of input, it is interesting to consider whether this may be a mechanism for neuromodulatory systems to control the degree of synchrony in downstream networks.
+By showing that their main findings using the simplified model translate well to more biophysically-realistic conductance-based models, Richardson \textit{et al.} provide a convenient framework to address these questions while making very few assumptions about the biophysical features of the neurons involved.
+
+\bibliographystyle{plain}
+\nocite{*}
+\bibliography{ref_list}
+
+\appendix
+\beginsupplement
+\singlespacing
+
+\section{Supplementary figures}
+
+\vfill
+\begin{figure}[h!]
+    \includegraphics[width = 6in]{img/appendix_gif.png}
+    \caption[Sample traces from LIF neuron]{
+        Sample output from LIF model.
+        Model parameters are the same as used in the main text.
+        Stimulus is a sinewave zap from 2--7Hz.
+        Simulation timestep is \SI{100}{\micro\s}.
+        }
+    \label{fig:appendix_gif}
+\end{figure}
+\vfill
+
+\begin{figure}
+    \includegraphics[width = 6in]{img/appendix_mod1.png}
+    \caption[Sample traces from neuron with $I_H$]{
+        Sample output from a Hodgkin-Huxley neuron with $I_H$ (model 1).
+        Model parameters are the same as used in the main text.
+        Stimulus is a sinewave zap from 2--7Hz.
+        Simulation timestep is \SI{10}{\micro\s}.
+        }
+    \label{fig:appendix_mod1}
+\end{figure}
+
+\begin{figure}
+    \includegraphics[width = 6in]{img/appendix_mod2.png}
+    \caption[Sample traces from neuron with $I_{NaP}$ and $I_{Ks}$]{
+        Sample output from a Hodgkin-Huxley neuron with $I_{NaP}$ and $I_{Ks}$ (model 2).
+        Model parameters are the same as used in the main text.
+        At depolarized potentials spontaneous oscillations are produced before firing begins.
+        Stimulus is a sinewave zap from 2--7Hz.
+        Simulation timestep is \SI{10}{\micro\s}.
+        }
+    \label{fig:appendix_mod2}
+\end{figure}
+
+
+\section{Sample code}
+
+\subsection{Implementation of voltage integration in LIF model}
+
+The full LIF model is implemented in \path{src/RichGIF.py}, which can be found at \path{github.com/efharkin/Richardson_replication}.
+What follows is the relevant part of the \path{RichGIF.model._simulate()} method that implements voltage integration of an arbitratry number of unconnected neurons with uncorrelated Gaussian white noise.
+
+\begin{verbatim}
+# Create vectors to store output
+V_mat = np.empty(I.shape, dtype = np.float64)
+w_mat = np.empty(I.shape, dtype = np.float64)
+spks = np.zeros(I.shape, dtype = np.bool)
+
+# Set initial condition
+V_mat[:, 0] = V0
+w_mat[:, 0] = V_mat[:, 0]
+
+# Integrate over time
+t = 0
+while t < (I.shape[1] - 1):
+
+    # Integrate conductance
+    dw_t = (V_mat[:, t] - w_mat[:, t]) / tau1 * dt
+    w_mat[:, t + 1] = w_mat[:, t] + dw_t
+
+    # Detect spiking neurons
+    spiking_neurons_t = V_mat[:, t] >= theta
+
+    # Apply spiking rule to spiking neurons
+    spks[spiking_neurons_t, t]          = True
+    V_mat[spiking_neurons_t, t + 1]     = reset
+
+    # Integrate voltage for all neurons,
+    # but only apply to non-spiking cells.
+    dV_t_deterministic = ( (-g * V_mat[:, t] - g1 * w_mat[:, t] + I[:, t])
+        / C * dt )
+    dV_t_stochastic = I_rand[:, t] / C * np.sqrt(dt)
+    dV_t_total = dV_t_deterministic + dV_t_stochastic
+
+    V_mat[~spiking_neurons_t, t + 1] = ( V_mat[~spiking_neurons_t, t]
+        + dV_t_total[~spiking_neurons_t] )
+
+    # Increment t
+    t += 1
+\end{verbatim}
+
+
+\subsection{Implementation of voltage integration in a neuron with $I_H$}
+
+The full conductance-based models are implemented in \path{src/RichCond.py}, which can be found at \path{github.com/efharkin/Richardson_replication}.
+What follows is \textbf{part} of the \path{RichCond.model1._simulate_syn()} method that implements voltage integration for an arbitrary number of neurons receiving synaptic-like input.
+The functions used to calculate the equilibrium states and time constants for the various gating variables are also implemented in this method, but are not shown here.
+
+\begin{verbatim}
+### Integrate over time
+t = 0
+while t < (I.shape[1] - 1):
+
+    V_t = V_mat[:, t]
+
+    # Integrate V
+    I_conductances = (
+        -gl * (V_t - El)
+        - gNa * m_vec**3 * h_vec * (V_t - ENa)
+        - gK * n_vec**4 * (V_t - EK)
+        - gIh * (0.8 * Ihf_vec + 0.2 * Ihs_vec) * (V_t - EIh)
+    )
+
+    dV_t_deterministic = (I_conductances + I[:, t]) / C * dt
+    dV_t_stochastic = ( (ge[:, t] * (V_t - Ee) + gi[:, t] * (V_t - Ei))
+        / C * dt )
+
+    V_mat[:, t + 1] = V_t + dV_t_deterministic + dV_t_stochastic
+
+    # Flag spks
+    spks_mat[:, t] = detect_spks(
+        V_t, spk_detect_thresh, dV_t_deterministic,
+        spks_mat[:, t-spk_detect_tref_ind:t]
+    )
+
+    # Integrate gates
+    m_vec = m_inf(V_t)
+    h_vec += d_h(V_t, h_vec) * dt
+    n_vec += d_n(V_t, n_vec) * dt
+    Ihf_vec += (Ihf_inf(V_t) - Ihf_vec) / tau_Ihf * dt
+    Ihs_vec += (Ihs_inf(V_t) - Ihs_vec) / tau_Ihs * dt
+
+    del dV_t_deterministic, dV_t_stochastic, V_t
+
+    if t % 100 == 0:
+        gc.collect()
+
+    # Increment t
+    t += 1
+\end{verbatim}
+
+
+\subsection{Implementation of voltage integration in a neuron with \\$I_{Ks}$ \& $I_{NaP}$}
+
+The full conductance-based models are implemented in \path{src/RichCond.py}, which can be found at \path{github.com/efharkin/Richardson_replication}.
+What follows is \textbf{part} of the \path{RichCond.model2._simulate_syn()} method that implements voltage integration for an arbitrary number of neurons receiving synaptic-like input.
+The functions used to calculate the equilibrium states and time constants for the various gating variables are also implemented in this method, but are not shown here.
+
+\begin{verbatim}
+### Integrate over time
+t = 0
+while t < (I.shape[1] - 1):
+
+    V_t = V_mat[:, t]
+
+    # Integrate V
+    I_conductances = (
+        -gl * (V_t - El)
+        - gNa * m_vec**3 * h_vec * (V_t - ENa)
+        - gK * n_vec**4 * (V_t - EK)
+        - gNaP * p_vec * (V_t - ENa)
+        - gKs * q_vec * (V_t - EK)
+    )
+
+    dV_t_deterministic = (I_conductances + I[:, t]) / C * dt
+    dV_t_stochastic = ( (ge[:, t] * (V_t - Ee) + gi[:, t] * (V_t - Ei))
+        / C * dt )
+
+    V_mat[:, t + 1] = V_t + dV_t_deterministic + dV_t_stochastic
+
+    # Flag spks
+    spks_mat[:, t] = detect_spks(
+        V_t, spk_detect_thresh, dV_t_deterministic,
+        spks_mat[:, (t-spk_detect_tref_ind):t]
+    )
+
+    # Integrate gates
+    m_vec = m_inf(V_t)
+    h_vec += d_h(V_t, h_vec) * dt
+    n_vec += d_n(V_t, n_vec) * dt
+    p_vec = p_inf(V_t)
+    q_vec += (q_inf(V_t) - q_vec) / tau_q * dt
+
+    del dV_t_deterministic, dV_t_stochastic, V_t
+
+    if t % 100 == 0:
+        gc.collect()
+
+    # Increment t
+    t += 1
+\end{verbatim}
+
+\end{document}

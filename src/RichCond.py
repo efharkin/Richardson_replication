@@ -103,14 +103,9 @@ class model1(object):
 
 
         V_mat       = sim_tensor[0, :, :]
-        m_mat       = sim_tensor[1, :, :]
-        h_mat       = sim_tensor[2, :, :]
-        n_mat       = sim_tensor[3, :, :]
-        Ihf_mat     = sim_tensor[4, :, :]
-        Ihs_mat     = sim_tensor[5, :, :]
-        spks_mat    = sim_tensor[6, :, :].astype(np.bool)
+        spks_mat    = sim_tensor[1, :, :].astype(np.bool)
 
-        return (I, V_mat, m_mat, h_mat, n_mat, Ihf_mat, Ihs_mat, spks_mat, dt)
+        return (I, V_mat, spks_mat, dt)
 
 
     @staticmethod
@@ -154,21 +149,21 @@ class model1(object):
 
         ### Create matrices to store output
         V_mat = np.empty(I.shape, dtype = np.float64)
-        m_mat = np.empty(I.shape, dtype = np.float64)
-        h_mat = np.empty(I.shape, dtype = np.float64)
-        n_mat = np.empty(I.shape, dtype = np.float64)
-        Ihf_mat = np.empty(I.shape, dtype = np.float64)
-        Ihs_mat = np.empty(I.shape, dtype = np.float64)
+        m_vec = np.empty(I.shape[0], dtype = np.float64)
+        h_vec = np.empty(I.shape[0], dtype = np.float64)
+        n_vec = np.empty(I.shape[0], dtype = np.float64)
+        Ihf_vec = np.empty(I.shape[0], dtype = np.float64)
+        Ihs_vec = np.empty(I.shape[0], dtype = np.float64)
         spks_mat = np.zeros(I.shape, dtype = np.bool)
 
 
         ### Set initial conditions
         V_mat[:, 0]     = V0
-        m_mat[:, 0]     = m_inf(V0)
-        h_mat[:, 0]     = h_inf(V0)
-        n_mat[:, 0]     = n_inf(V0)
-        Ihf_mat[:, 0]   = Ihf_inf(V0)
-        Ihs_mat[:, 0]   = Ihs_inf(V0)
+        m_vec[:]     = m_inf(V0)
+        h_vec[:]     = h_inf(V0)
+        n_vec[:]     = n_inf(V0)
+        Ihf_vec[:]   = Ihf_inf(V0)
+        Ihs_vec[:]   = Ihs_inf(V0)
 
         spk_detect_tref_ind = int(spk_detect_tref / dt)
 
@@ -179,19 +174,12 @@ class model1(object):
 
             V_t = V_mat[:, t]
 
-            # Integrate gates
-            m_mat[:, t + 1] = m_inf(V_t)
-            h_mat[:, t + 1] = h_mat[:, t] + integrate_gate(h_inf(V_t), h_mat[:, t], tau_h(V_t), dt)
-            n_mat[:, t + 1] = n_mat[:, t] + integrate_gate(n_inf(V_t), n_mat[:, t], tau_n(V_t), dt)
-            Ihf_mat[:, t + 1] = Ihf_mat[:, t] + integrate_gate(Ihf_inf(V_t), Ihf_mat[:, t], tau_Ihf, dt)
-            Ihs_mat[:, t + 1] = Ihs_mat[:, t] + integrate_gate(Ihs_inf(V_t), Ihs_mat[:, t], tau_Ihs, dt)
-
             # Integrate V
             I_conductances = (
                 -gl * (V_t - El)
-                - gNa * m_mat[:, t]**3 * h_mat[:, t] * (V_t - ENa)
-                - gK * n_mat[:, t]**4 * (V_t - EK)
-                - gIh * (0.8 * Ihf_mat[:, t] + 0.2 * Ihs_mat[:, t]) * (V_t - EIh)
+                - gNa * m_vec**3 * h_vec * (V_t - ENa)
+                - gK * n_vec**4 * (V_t - EK)
+                - gIh * (0.8 * Ihf_vec + 0.2 * Ihs_vec) * (V_t - EIh)
             )
 
             dV_t_deterministic = (I_conductances + I[:, t]) / C * dt
@@ -206,12 +194,19 @@ class model1(object):
             )
             spks_mat[spks_t, t] = True
 
+            # Integrate gates
+            m_vec = m_inf(V_t)
+            h_vec = h_vec + integrate_gate(h_inf(V_t), h_vec, tau_h(V_t), dt)
+            n_vec = n_vec + integrate_gate(n_inf(V_t), n_vec, tau_n(V_t), dt)
+            Ihf_vec = Ihf_vec + integrate_gate(Ihf_inf(V_t), Ihf_vec, tau_Ihf, dt)
+            Ihs_vec = Ihs_vec + integrate_gate(Ihs_inf(V_t), Ihs_vec, tau_Ihs, dt)
+
             # Increment t
             t += 1
 
 
         ### Return output in a tensor
-        return np.array([V_mat, m_mat, h_mat, n_mat, Ihf_mat, Ihs_mat, spks_mat])
+        return np.array([V_mat, spks_mat])
 
 
     @staticmethod
@@ -255,21 +250,21 @@ class model1(object):
 
         ### Create matrices to store output
         V_mat = np.empty(I.shape, dtype = np.float64)
-        m_mat = np.empty(I.shape, dtype = np.float64)
-        h_mat = np.empty(I.shape, dtype = np.float64)
-        n_mat = np.empty(I.shape, dtype = np.float64)
-        Ihf_mat = np.empty(I.shape, dtype = np.float64)
-        Ihs_mat = np.empty(I.shape, dtype = np.float64)
+        m_vec = np.empty(I.shape[0], dtype = np.float64)
+        h_vec = np.empty(I.shape[0], dtype = np.float64)
+        n_vec = np.empty(I.shape[0], dtype = np.float64)
+        Ihf_vec = np.empty(I.shape[0], dtype = np.float64)
+        Ihs_vec = np.empty(I.shape[0], dtype = np.float64)
         spks_mat = np.zeros(I.shape, dtype = np.bool)
 
 
         ### Set initial conditions
         V_mat[:, 0]     = V0
-        m_mat[:, 0]     = m_inf(V0)
-        h_mat[:, 0]     = h_inf(V0)
-        n_mat[:, 0]     = n_inf(V0)
-        Ihf_mat[:, 0]   = Ihf_inf(V0)
-        Ihs_mat[:, 0]   = Ihs_inf(V0)
+        m_vec[:]     = m_inf(V0)
+        h_vec[:]     = h_inf(V0)
+        n_vec[:]     = n_inf(V0)
+        Ihf_vec[:]   = Ihf_inf(V0)
+        Ihs_vec[:]   = Ihs_inf(V0)
 
         spk_detect_tref_ind = int(spk_detect_tref / dt)
 
@@ -280,19 +275,12 @@ class model1(object):
 
             V_t = V_mat[:, t]
 
-            # Integrate gates
-            m_mat[:, t + 1] = m_inf(V_t)
-            h_mat[:, t + 1] = h_mat[:, t] + integrate_gate(h_inf(V_t), h_mat[:, t], tau_h(V_t), dt)
-            n_mat[:, t + 1] = n_mat[:, t] + integrate_gate(n_inf(V_t), n_mat[:, t], tau_n(V_t), dt)
-            Ihf_mat[:, t + 1] = Ihf_mat[:, t] + integrate_gate(Ihf_inf(V_t), Ihf_mat[:, t], tau_Ihf, dt)
-            Ihs_mat[:, t + 1] = Ihs_mat[:, t] + integrate_gate(Ihs_inf(V_t), Ihs_mat[:, t], tau_Ihs, dt)
-
             # Integrate V
             I_conductances = (
                 -gl * (V_t - El)
-                - gNa * m_mat[:, t]**3 * h_mat[:, t] * (V_t - ENa)
-                - gK * n_mat[:, t]**4 * (V_t - EK)
-                - gIh * (0.8 * Ihf_mat[:, t] + 0.2 * Ihs_mat[:, t]) * (V_t - EIh)
+                - gNa * m_vec**3 * h_vec * (V_t - ENa)
+                - gK * n_vec**4 * (V_t - EK)
+                - gIh * (0.8 * Ihf_vec + 0.2 * Ihs_vec) * (V_t - EIh)
             )
 
             dV_t_deterministic = (I_conductances + I[:, t]) / C * dt
@@ -307,12 +295,19 @@ class model1(object):
             )
             spks_mat[spks_t, t] = True
 
+            # Integrate gates
+            m_vec = m_inf(V_t)
+            h_vec = h_vec + integrate_gate(h_inf(V_t), h_vec, tau_h(V_t), dt)
+            n_vec = n_vec + integrate_gate(n_inf(V_t), n_vec, tau_n(V_t), dt)
+            Ihf_vec = Ihf_vec + integrate_gate(Ihf_inf(V_t), Ihf_vec, tau_Ihf, dt)
+            Ihs_vec = Ihs_vec + integrate_gate(Ihs_inf(V_t), Ihs_vec, tau_Ihs, dt)
+
             # Increment t
             t += 1
 
 
         ### Return output in a tensor
-        return np.array([V_mat, m_mat, h_mat, n_mat, Ihf_mat, Ihs_mat, spks_mat])
+        return np.array([V_mat, spks_mat])
 
 
 class model2(object):
@@ -395,14 +390,9 @@ class model2(object):
             raise NotImplementedError('Purely deterministic simulation not implemented. Use I_N = 0 instead.')
 
         V_mat       = sim_tensor[0, :, :]
-        m_mat       = sim_tensor[1, :, :]
-        h_mat       = sim_tensor[2, :, :]
-        n_mat       = sim_tensor[3, :, :]
-        p_mat       = sim_tensor[4, :, :]
-        q_mat       = sim_tensor[5, :, :]
-        spks_mat    = sim_tensor[6, :, :].astype(np.bool)
+        spks_mat    = sim_tensor[1, :, :].astype(np.bool)
 
-        return (I, V_mat, m_mat, h_mat, n_mat, p_mat, q_mat, spks_mat, dt)
+        return (I, V_mat, spks_mat, dt)
 
 
     @staticmethod
@@ -446,21 +436,21 @@ class model2(object):
 
         ### Create matrices to store output
         V_mat = np.empty(I.shape, dtype = np.float64)
-        m_mat = np.empty(I.shape, dtype = np.float64)
-        h_mat = np.empty(I.shape, dtype = np.float64)
-        n_mat = np.empty(I.shape, dtype = np.float64)
-        p_mat = np.empty(I.shape, dtype = np.float64)
-        q_mat = np.empty(I.shape, dtype = np.float64)
+        m_vec = np.empty(I.shape[0], dtype = np.float64)
+        h_vec = np.empty(I.shape[0], dtype = np.float64)
+        n_vec = np.empty(I.shape[0], dtype = np.float64)
+        p_vec = np.empty(I.shape[0], dtype = np.float64)
+        q_vec = np.empty(I.shape[0], dtype = np.float64)
         spks_mat = np.zeros(I.shape, dtype = np.bool)
 
 
         ### Set initial conditions
         V_mat[:, 0]     = V0
-        m_mat[:, 0]     = m_inf(V0)
-        h_mat[:, 0]     = h_inf(V0)
-        n_mat[:, 0]     = n_inf(V0)
-        p_mat[:, 0]   = p_inf(V0)
-        q_mat[:, 0]   = q_inf(V0)
+        m_vec[:]     = m_inf(V0)
+        h_vec[:]     = h_inf(V0)
+        n_vec[:]     = n_inf(V0)
+        p_vec[:]     = p_inf(V0)
+        q_vec[:]     = q_inf(V0)
 
         spk_detect_tref_ind = int(spk_detect_tref / dt)
 
@@ -471,20 +461,13 @@ class model2(object):
 
             V_t = V_mat[:, t]
 
-            # Integrate gates
-            m_mat[:, t + 1] = m_inf(V_t)
-            h_mat[:, t + 1] = h_mat[:, t] + integrate_gate(h_inf(V_t), h_mat[:, t], tau_h(V_t), dt)
-            n_mat[:, t + 1] = n_mat[:, t] + integrate_gate(n_inf(V_t), n_mat[:, t], tau_n(V_t), dt)
-            p_mat[:, t + 1] = p_inf(V_t)
-            q_mat[:, t + 1] = q_mat[:, t] + integrate_gate(q_inf(V_t), q_mat[:, t], tau_q, dt)
-
             # Integrate V
             I_conductances = (
                 -gl * (V_t - El)
-                - gNa * m_mat[:, t]**3 * h_mat[:, t] * (V_t - ENa)
-                - gK * n_mat[:, t]**4 * (V_t - EK)
-                - gNaP * p_mat[:, t] * (V_t - ENa)
-                - gKs * q_mat[:, t] * (V_t - EK)
+                - gNa * m_vec**3 * h_vec * (V_t - ENa)
+                - gK * n_vec**4 * (V_t - EK)
+                - gNaP * p_vec * (V_t - ENa)
+                - gKs * q_vec * (V_t - EK)
             )
 
             dV_t_deterministic = (I_conductances + I[:, t]) / C * dt
@@ -499,12 +482,19 @@ class model2(object):
             )
             spks_mat[spks_t, t] = True
 
+            # Integrate gates
+            m_vec = m_inf(V_t)
+            h_vec = h_vec + integrate_gate(h_inf(V_t), h_vec, tau_h(V_t), dt)
+            n_vec = n_vec + integrate_gate(n_inf(V_t), n_vec, tau_n(V_t), dt)
+            p_vec = p_inf(V_t)
+            q_vec = q_vec + integrate_gate(q_inf(V_t), q_vec, tau_q, dt)
+
             # Increment t
             t += 1
 
 
         ### Return output in a tensor
-        return np.array([V_mat, m_mat, h_mat, n_mat, p_mat, q_mat, spks_mat])
+        return np.array([V_mat, spks_mat])
 
     @staticmethod
     def _simulate_syn(I, V0, ge, Ee, gi, Ei, C, gl, El, gNa, ENa, gK, EK, gNaP, gKs, tau_q,
@@ -547,21 +537,21 @@ class model2(object):
 
         ### Create matrices to store output
         V_mat = np.empty(I.shape, dtype = np.float64)
-        m_mat = np.empty(I.shape, dtype = np.float64)
-        h_mat = np.empty(I.shape, dtype = np.float64)
-        n_mat = np.empty(I.shape, dtype = np.float64)
-        p_mat = np.empty(I.shape, dtype = np.float64)
-        q_mat = np.empty(I.shape, dtype = np.float64)
+        m_vec = np.empty(I.shape[0], dtype = np.float64)
+        h_vec = np.empty(I.shape[0], dtype = np.float64)
+        n_vec = np.empty(I.shape[0], dtype = np.float64)
+        p_vec = np.empty(I.shape[0], dtype = np.float64)
+        q_vec = np.empty(I.shape[0], dtype = np.float64)
         spks_mat = np.zeros(I.shape, dtype = np.bool)
 
 
         ### Set initial conditions
         V_mat[:, 0]     = V0
-        m_mat[:, 0]     = m_inf(V0)
-        h_mat[:, 0]     = h_inf(V0)
-        n_mat[:, 0]     = n_inf(V0)
-        p_mat[:, 0]   = p_inf(V0)
-        q_mat[:, 0]   = q_inf(V0)
+        m_vec[:]     = m_inf(V0)
+        h_vec[:]     = h_inf(V0)
+        n_vec[:]     = n_inf(V0)
+        p_vec[:]     = p_inf(V0)
+        q_vec[:]     = q_inf(V0)
 
         spk_detect_tref_ind = int(spk_detect_tref / dt)
 
@@ -572,20 +562,13 @@ class model2(object):
 
             V_t = V_mat[:, t]
 
-            # Integrate gates
-            m_mat[:, t + 1] = m_inf(V_t)
-            h_mat[:, t + 1] = h_mat[:, t] + integrate_gate(h_inf(V_t), h_mat[:, t], tau_h(V_t), dt)
-            n_mat[:, t + 1] = n_mat[:, t] + integrate_gate(n_inf(V_t), n_mat[:, t], tau_n(V_t), dt)
-            p_mat[:, t + 1] = p_inf(V_t)
-            q_mat[:, t + 1] = q_mat[:, t] + integrate_gate(q_inf(V_t), q_mat[:, t], tau_q, dt)
-
             # Integrate V
             I_conductances = (
                 -gl * (V_t - El)
-                - gNa * m_mat[:, t]**3 * h_mat[:, t] * (V_t - ENa)
-                - gK * n_mat[:, t]**4 * (V_t - EK)
-                - gNaP * p_mat[:, t] * (V_t - ENa)
-                - gKs * q_mat[:, t] * (V_t - EK)
+                - gNa * m_vec**3 * h_vec * (V_t - ENa)
+                - gK * n_vec**4 * (V_t - EK)
+                - gNaP * p_vec * (V_t - ENa)
+                - gKs * q_vec * (V_t - EK)
             )
 
             dV_t_deterministic = (I_conductances + I[:, t]) / C * dt
@@ -600,12 +583,19 @@ class model2(object):
             )
             spks_mat[spks_t, t] = True
 
+            # Integrate gates
+            m_vec = m_inf(V_t)
+            h_vec = h_vec + integrate_gate(h_inf(V_t), h_vec, tau_h(V_t), dt)
+            n_vec = n_vec + integrate_gate(n_inf(V_t), n_vec, tau_n(V_t), dt)
+            p_vec = p_inf(V_t)
+            q_vec = q_vec + integrate_gate(q_inf(V_t), q_vec, tau_q, dt)
+
             # Increment t
             t += 1
 
 
         ### Return output in a tensor
-        return np.array([V_mat, m_mat, h_mat, n_mat, p_mat, q_mat, spks_mat])
+        return np.array([V_mat, spks_mat])
 
 
 
@@ -701,41 +691,14 @@ class simulation(Simulation):
 
         self._mod = deepcopy(mod) # Attach a copy of model just in case
 
-        I, V_mat, m_mat, h_mat, n_mat, v1_mat, v2_mat, spks_mat, dt = (
+        I, V_mat, spks_mat, dt = (
             self._mod.simulate(I, V0, replicates, I_N, ge, Ee, gi, Ei, dt = dt)
         )
 
         self.I      = I         # Injected current (nA)
         self.V      = V_mat     # Somatic voltage (mV)
-        self.m      = m_mat
-        self.h      = h_mat
-        self.n      = n_mat
-        self._var1  = v1_mat
-        self._var2  = v2_mat
         self.spks   = spks_mat  # Boolean vector of spks
         self.dt     = dt        # Simulation timestep
-
-
-    ### Methods to access extra conductances
-    @property
-    def p(self):
-        if self._mod._model_type == '2': return self._var1
-        else: raise AttributeError('Model has no attribute `p`')
-
-    @property
-    def q(self):
-        if self._mod._model_type == '2': return self._var2
-        else: raise AttributeError('Model has no attribute `q`')
-
-    @property
-    def Ihf(self):
-        if self._mod._model_type == '1': return self._var1
-        else: raise AttributeError('Model has no attribute `Ihf`')
-
-    @property
-    def Ihs(self):
-        if self._mod._model_type == '1': return self._var2
-        else: raise AttributeError('Model has no attribute `Ihs`')
 
 
     ### Method to get replicates
@@ -744,11 +707,6 @@ class simulation(Simulation):
 
         inferred_replicates = [self.I.shape[0],
                                self.V.shape[0],
-                               self.m.shape[0],
-                               self.h.shape[0],
-                               self.n.shape[0],
-                               self._var1.shape[0],
-                               self._var2.shape[0],
                                self.spks.shape[0]]
 
         assert all([inferred_replicates[0] == r for r in inferred_replicates]), 'Not all attrs have same no of replicates'

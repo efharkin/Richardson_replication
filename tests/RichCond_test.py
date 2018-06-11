@@ -21,7 +21,7 @@ per = np.linspace(1000/2, 1000/7, len(t))
 test_current = 0.024 * np.sin(t * 2 * np.pi / per) + 0.35
 I_N = 0.11
 
-I, V_mat, m_mat, h_mat, n_mat, Ihf_mat, Ihs_mat, spks, dt_ = test_mod.simulate(
+I, V_mat, spks, dt_ = test_mod.simulate(
     test_current, -60, no_neurons, I_N = I_N, spk_detect_thresh = -30, spk_detect_tref = 2, dt = dt
 )
 
@@ -41,9 +41,6 @@ plt.plot(t_mat.T, V_mat.T, 'k-', alpha = 1/no_neurons)
 plt.ylabel('V (mV)')
 
 plt.subplot(413, sharex = spks_plot)
-plt.plot(t_mat.T, m_mat.T, 'k-', alpha = 1/no_neurons, label = 'm')
-plt.plot(t_mat.T, h_mat.T, 'r-', alpha = 1/no_neurons, label = 'h')
-plt.plot(t_mat.T, n_mat.T, 'b-', alpha = 1/no_neurons, label = 'n')
 plt.ylabel('g')
 #plt.legend()
 
@@ -67,7 +64,7 @@ per = np.linspace(1000/2, 1000/7, len(t))
 test_current = 0.024 * np.sin(t * 2 * np.pi / per) + 1.7
 I_N = 0.11
 
-I, V_mat, m_mat, h_mat, n_mat, p_mat, q_mat, spks, dt_ = test_mod2.simulate(
+I, V_mat, spks, dt_ = test_mod2.simulate(
     test_current, -60, no_neurons, I_N = I_N, spk_detect_thresh = -30,
     spk_detect_tref = 2, dt = dt
 )
@@ -88,9 +85,6 @@ plt.plot(t_mat.T, V_mat.T, 'k-', alpha = 1/no_neurons)
 plt.ylabel('V (mV)')
 
 plt.subplot(413, sharex = spks_plot)
-plt.plot(t_mat.T, m_mat.T, 'k-', alpha = 1/no_neurons, label = 'm')
-plt.plot(t_mat.T, h_mat.T, 'r-', alpha = 1/no_neurons, label = 'h')
-plt.plot(t_mat.T, n_mat.T, 'b-', alpha = 1/no_neurons, label = 'n')
 plt.ylabel('g')
 #plt.legend()
 
@@ -210,3 +204,6 @@ ge, gi = syn_noise.realize((no_neurons, len(test_current)), dt = dt)
 
 test_sim1 = Cond.simulation(test_current, V0, mod1, no_neurons, ge = ge, Ee = 0, gi = gi, Ei = -75, dt = dt)
 test_sim2 = Cond.simulation(test_current, V0, test_mod2, no_neurons, ge = ge, Ee = 0, gi = gi, Ei = -75, dt = dt)
+
+test_sim1.basic_plot()
+test_sim2.basic_plot()

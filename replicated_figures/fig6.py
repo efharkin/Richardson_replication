@@ -48,6 +48,7 @@ high_noise_sim.firing_rate_plot(bin_width = 1)
 
 ### Gain extraction
 no_neurons = int(2e2)
+no_freqs = 15
 V0 = 17.5
 I_N = 0.55
 bin_width = 2
@@ -86,7 +87,7 @@ class Analysis(object):
 high_noise_analysis = Analysis()
 low_noise_analysis = Analysis()
 
-for freq in [1, 5, 10, 50, 100]:
+for freq in np.logspace(0, 2):
 
     print('\rSimulating frequency {}'.format(freq), end = '')
 
@@ -104,6 +105,7 @@ for freq in [1, 5, 10, 50, 100]:
     gain_high, phase_high = high_noise_sim_2.extract_IO_gain_phase(freq, bin_width = bin_width, plot = False)
     high_noise_analysis.append(freq, gain_high, phase_high)
 
+
 print('\nDone!')
 
 low_noise_analysis.convert_to_numpy()
@@ -117,6 +119,7 @@ high_noise_analysis.gains /= high_noise_analysis.gains[0]
 save_path = './doc/img/'
 
 firing_rate_bin_width = 2
+markersize = 1.2
 
 plt.rc('text', usetex = True)
 
@@ -132,9 +135,9 @@ plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)
 
-plt.figure(figsize = (6, 6))
+plt.figure(figsize = (6, 6.5))
 
-spec = gs.GridSpec(3, 2, hspace = 0.6, wspace = 0.3, top = 0.95, bottom = 0.1)
+spec = gs.GridSpec(3, 2, hspace = 0.6, wspace = 0.3, top = 0.95, bottom = 0.1, right = 0.95, height_ratios = [1.2, 1.2, 1])
 
 specA = gs.GridSpecFromSubplotSpec(2, 1, spec[0, :], hspace = 0.6)
 specA1 = gs.GridSpecFromSubplotSpec(2, 1, specA[0, :], height_ratios = [4, 1], hspace = 0)
@@ -161,6 +164,9 @@ plt.subplot(specA[1, :])
 plt.title('\\textbf{{A2}} Low noise mean firing rate', loc = 'left')
 x, y = low_noise_sim.get_firing_rate(bin_width = firing_rate_bin_width)
 plt.bar(x, y, width = firing_rate_bin_width, color = (0.8, 0.2, 0.2))
+plt.text(1500, 45, '$f = $ resonance', ha = 'center', va = 'bottom')
+plt.text(2500, 45, '$f = r_0$', ha = 'center', va = 'bottom')
+plt.ylim(0, 65)
 plt.xlabel('Time (ms)')
 plt.ylabel('Rate (Hz)')
 
@@ -184,14 +190,29 @@ plt.subplot(specB[1, :])
 plt.title('\\textbf{{B2}} High noise mean firing rate', loc = 'left')
 x, y = high_noise_sim.get_firing_rate(bin_width = firing_rate_bin_width)
 plt.bar(x, y, width = firing_rate_bin_width, color = (0.2, 0.2, 0.8), aa = False)
+plt.text(1500, 35, '$f = $ resonance', ha = 'center', va = 'bottom')
+plt.text(2500, 35, '$f = r_0$', ha = 'center', va = 'bottom')
+plt.ylim(0, 50)
 plt.xlabel('Time (ms)')
 plt.ylabel('Rate (Hz)')
 
 ax = plt.subplot(spec[2, 0])
 plt.title('\\textbf{{C1}} Signal gain', loc = 'left')
+plt.axvline(5, linestyle = 'dotted', linewidth = 0.7, color = 'k')
+plt.axvline(20, linestyle = '--', dashes = (10, 10), linewidth = 0.7, color = 'k')
 ax.set_xscale('log')
-plt.plot(low_noise_analysis.freqs, low_noise_analysis.gains, 'o', color = (0.8, 0.2, 0.2), label = 'Low noise')
-plt.plot(high_noise_analysis.freqs, high_noise_analysis.gains, 'o', color = (0.2, 0.2, 0.8), label = 'High noise')
+plt.plot(low_noise_analysis.freqs, low_noise_analysis.gains, 'o',
+    color = (0.8, 0.2, 0.2), markersize = markersize, label = 'Low noise')
+plt.plot(high_noise_analysis.freqs, high_noise_analysis.gains, 'o',
+    color = (0.2, 0.2, 0.8), markersize = markersize, label = 'High noise')
+plt.annotate(
+    'Resonance', xy = (5, 0.7), xytext = (-15, 0), textcoords = 'offset points',
+    ha = 'right', va = 'center', arrowprops = {'arrowstyle': '->'}
+)
+plt.annotate(
+    '$r_0$', xy = (20, 0.4), xytext = (15, -10), textcoords = 'offset points',
+    ha = 'left', va = 'center', arrowprops = {'arrowstyle': '->'}
+)
 plt.legend()
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('Gain')
@@ -200,8 +221,12 @@ plt.ylabel('Gain')
 ax = plt.subplot(spec[2, 1])
 plt.title('\\textbf{{C2}} Signal phase-shift', loc = 'left')
 ax.set_xscale('log')
-plt.plot(low_noise_analysis.freqs, 360 * low_noise_analysis.phases / (2 * np.pi), 'o', color = (0.8, 0.2, 0.2), label = 'Low noise')
-plt.plot(high_noise_analysis.freqs, 360 * high_noise_analysis.phases / (2 * np.pi), 'o', color = (0.2, 0.2, 0.8), label = 'High noise')
+plt.axvline(5, linestyle = 'dotted', linewidth = 0.7, color = 'k')
+plt.axvline(20, linestyle = '--', dashes = (10, 10), linewidth = 0.7, color = 'k')
+plt.plot(low_noise_analysis.freqs, 360 * low_noise_analysis.phases / (2 * np.pi), 'o',
+    color = (0.8, 0.2, 0.2), markersize = markersize, label = 'Low noise')
+plt.plot(high_noise_analysis.freqs, 360 * high_noise_analysis.phases / (2 * np.pi), 'o',
+    color = (0.2, 0.2, 0.8), markersize = markersize, label = 'High noise')
 plt.legend()
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('Phase shift (degrees)')

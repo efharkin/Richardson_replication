@@ -312,7 +312,7 @@ plt.plot(mod1_noiseA.freqs, 360 * mod1_noiseA.phases / (2 * np.pi),
     'o', color = (0.8, 0.2, 0.2), markersize = markersize, label = 'Low noise')
 plt.plot(mod1_noiseB.freqs, 360 * mod1_noiseB.phases / (2 * np.pi),
     'o', color = (0.2, 0.2, 0.8), markersize = markersize, label = 'High noise')
-plt.ylabel('Phase shift (radians)')
+plt.ylabel('Phase shift (degrees)')
 plt.xlabel('Frequency (Hz)')
 plt.legend()
 
@@ -336,7 +336,7 @@ plt.plot(mod2_noiseA.freqs, 360 * mod2_noiseA.phases / (2 * np.pi),
     'o', color = (0.8, 0.2, 0.2), markersize = markersize)
 plt.plot(mod2_noiseB.freqs, 360 * mod2_noiseB.phases / (2 * np.pi),
     'o', color = (0.2, 0.2, 0.8), markersize = markersize)
-plt.ylabel('Phase shift (radians)')
+plt.ylabel('Phase shift (degrees)')
 plt.xlabel('Frequency (Hz)')
 
 if save_path is not None:

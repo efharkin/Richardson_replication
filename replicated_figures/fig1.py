@@ -70,7 +70,7 @@ pltools.add_scalebar(anchor = (0, 0.1), omit_x = True, y_units = 'mV')
 sample_current_plot = plt.subplot(spec_inner[1, :])
 plt.plot(t_mat_transpose[:, 0], 1e3 * fig1_GIFsim.I.T[:, 0], 'k-', linewidth = 0.5)
 plt.annotate(
-'$I_1$',
+'$I_{{sin}}$',
 xy = (210, 1e3 * 0.955),
 xytext = (20, -5), textcoords = 'offset points',
 ha = 'center', va = 'top',

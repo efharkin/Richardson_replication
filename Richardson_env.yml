@@ -122,5 +122,3 @@ dependencies:
   - xz=5.2.4
   - zeromq=4.2.5
   - zlib=1.2.11
-prefix: /Users/eharkin/miniconda3/envs/Richardson
-
